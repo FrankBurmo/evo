@@ -264,7 +264,7 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
   // Step 1: Create the issue (without assignee — Copilot must be assigned separately)
   let issue;
   try {
-    const labels = ['copilot'];
+    const labels = ['copilot:run'];
     if (recommendation.priority === 'high') labels.push('priority: high');
     if (recommendation.type) labels.push(recommendation.type);
 
@@ -273,6 +273,7 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
       repo: repoName,
       title: issueTitle,
       body: issueBody,
+      assignees: ["@copilot"], // Do not assign yet, as Copilot assignment is done via a separate endpoint
       labels,
     });
     issue = data;
