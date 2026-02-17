@@ -30,6 +30,7 @@ function AgentModal({ recommendation, repo, token, onClose }) {
 
       setIssueUrl(data.issueUrl);
       setStatus('success');
+      if (data.note) setErrorMessage(data.note);
     } catch (err) {
       setErrorMessage(err.message);
       setStatus('error');
@@ -88,6 +89,11 @@ function AgentModal({ recommendation, repo, token, onClose }) {
               <div className="status-icon success">✅</div>
               <h3>Issue opprettet!</h3>
               <p>Copilot er nå tildelt og vil begynne å jobbe med problemet.</p>
+              {errorMessage && (
+                <p style={{ marginTop: '10px', fontSize: '0.82rem', color: '#e67e00', background: '#fff8ee', padding: '10px', borderRadius: '6px', lineHeight: 1.5 }}>
+                  ⚠️ {errorMessage}
+                </p>
+              )}
               <a
                 href={issueUrl}
                 target="_blank"
