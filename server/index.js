@@ -164,15 +164,19 @@ app.get('/api/repos', async (req, res) => {
 
     const octokit = getOctokit(token);
     
-    // Get authenticated user's repositories
+    // Get authenticated user's repositories.
+    // Note: the GitHub API does not support filtering archived repos server-side,
+    // so we filter them out after fetching.
     const { data: repos } = await octokit.repos.listForAuthenticatedUser({
       sort: 'updated',
-      per_page: 100,
+      per_page: 200,
       affiliation: 'owner'
     });
 
+    const activeRepos = repos.filter(repo => !repo.archived);
+
     // Analyze each repository
-    const analyzedRepos = repos.map(repo => analyzeRepository(repo));
+    const analyzedRepos = activeRepos.map(repo => analyzeRepository(repo));
 
     res.json({
       totalRepos: analyzedRepos.length,
