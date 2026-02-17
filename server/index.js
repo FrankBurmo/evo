@@ -281,67 +281,94 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
     return res.status(500).json({ error: 'Failed to create issue', message: error.message });
   }
 
-  // Step 2: Assign Copilot using the undocumented GitHub.com endpoint
-  // This is the same endpoint the GitHub UI uses when clicking "Assign to Copilot"
+  // Step 2: Assign Copilot using GitHub GraphQL API
+  // This is the same method GitHub CLI uses: replaceActorsForAssignable mutation
   let copilotAssigned = false;
   let assignmentMethod = null;
 
   try {
-    const assignmentUrl = `https://github.com/${owner}/${repoName}/issues/agent_assignments`;
-    const assignmentPayload = {
-      issue_ids: [issue.number],
-      repo_name_with_owner: `${owner}/${repoName}`,
-      base_ref: 'main',
-      custom_instructions: '',
-    };
-
-    console.log('Method 1: Attempting Copilot assignment via GitHub UI endpoint...');
-    console.log('URL:', assignmentUrl);
-    console.log('Payload:', JSON.stringify(assignmentPayload, null, 2));
-
-    const response = await fetch(assignmentUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token || process.env.GITHUB_TOKEN}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify(assignmentPayload),
-    });
-
-    console.log('Response status:', response.status, response.statusText);
-
-    if (response.ok) {
-      copilotAssigned = true;
-      assignmentMethod = 'github-ui-endpoint';
-      const responseData = await response.text();
-      console.log(`✓ Issue #${issue.number} - Copilot assigned successfully via UI endpoint!`);
-      console.log('Response:', responseData);
-    } else {
-      const errorText = await response.text();
-      console.warn(`✗ Method 1 failed (${response.status}):`, errorText);
-      throw new Error(`GitHub UI endpoint returned ${response.status}`);
-    }
-  } catch (assignError) {
-    console.warn('✗ Method 1 (UI endpoint) failed:', assignError.message);
+    console.log('Attempting Copilot assignment via GitHub GraphQL (same as gh CLI)...');
     
-    // Fallback: Try adding a comment that triggers Copilot workspace
-    try {
-      console.log('Method 2: Attempting agent assignment via GitHub assignees API...');
-      
-      await octokit.issues.addAssignees({
+    // Step 2a: Get the issue's node ID via GraphQL
+    console.log('Step 1: Fetching issue node ID...');
+    const issueQuery = await octokit.graphql(
+      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $number) {
+            id
+          }
+        }
+      }`,
+      {
         owner,
         repo: repoName,
-        issue_number: issue.number,
-        assignees: ['min-kode-agent'],
-      });
+        number: issue.number,
+      }
+    );
+    
+    const issueNodeId = issueQuery.repository.issue.id;
+    console.log('Issue node ID:', issueNodeId);
 
-      copilotAssigned = true;
-      assignmentMethod = 'assignees-api';
-      console.log(`✓ Issue #${issue.number} - min-kode-agent assigned via API!`);
-    } catch (assigneeError) {
-      console.warn('✗ Method 2 (assignees API) also failed:', assigneeError.message);
+    // Step 2b: Get assignable actors to find Copilot's ID
+    console.log('Step 2: Fetching assignable actors...');
+    const actorsQuery = await octokit.graphql(
+      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+            nodes {
+              ... on User {
+                id
+                login
+                __typename
+              }
+              ... on Bot {
+                id
+                login
+                __typename
+              }
+            }
+          }
+        }
+      }`,
+      {
+        owner,
+        repo: repoName,
+      }
+    );
+
+    // Find Copilot bot (login: "copilot-swe-agent" or your custom agent)
+    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
+      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
+    );
+
+    if (!copilotBot) {
+      throw new Error('Copilot bot not found in assignable actors. Make sure Copilot is enabled for this repository.');
     }
+
+    console.log('Found bot:', copilotBot.login, 'with ID:', copilotBot.id);
+
+    // Step 2c: Assign using GraphQL mutation
+    console.log('Step 3: Assigning via replaceActorsForAssignable mutation...');
+    await octokit.graphql(
+      `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
+        replaceActorsForAssignable(input: $input) {
+          __typename
+        }
+      }`,
+      {
+        input: {
+          assignableId: issueNodeId,
+          actorIds: [copilotBot.id],
+        },
+      }
+    );
+
+    copilotAssigned = true;
+    assignmentMethod = 'graphql-mutation';
+    console.log(`✓ Issue #${issue.number} - ${copilotBot.login} assigned successfully via GraphQL!`);
+  } catch (assignError) {
+    console.warn('✗ GraphQL assignment failed:', assignError.message);
+    console.error('Full error:', assignError);
   }
 
   return res.json({
@@ -350,11 +377,11 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
     issueNumber: issue.number,
     copilotAssigned,
     assignmentMethod,
-    ...(copilotAssigned && assignmentMethod === 'assignees-api' && {
-      note: 'Issue created and assigned to min-kode-agent via GitHub API.',
+    ...(copilotAssigned && {
+      note: 'Issue created and assigned to Copilot agent successfully!',
     }),
     ...(!copilotAssigned && {
-      note: 'Issue created, but min-kode-agent could not be assigned automatically. Please assign min-kode-agent manually in the issue.',
+      note: 'Issue created, but Copilot agent could not be assigned automatically. Make sure GitHub Copilot is enabled for this repository and try assigning manually.',
     }),
   });
 });
