@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 const { Octokit } = require('@octokit/rest');
 
 const app = express();
@@ -8,6 +9,15 @@ const port = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+
+app.use('/api/', limiter);
 
 // GitHub API client
 const getOctokit = (token) => {
@@ -31,8 +41,9 @@ function analyzeRepository(repo) {
     forks: repo.forks_count || 0,
   };
 
-  // Check for README
-  insights.hasReadme = repo.has_pages || false;
+  // Note: README detection would require an additional API call to check repo contents
+  // For now, we assume repos with good descriptions are more likely to have READMEs
+  insights.hasReadme = repo.description ? true : false;
   
   // Check for recent activity (updated in last 30 days)
   const daysSinceUpdate = repo.updated_at 
