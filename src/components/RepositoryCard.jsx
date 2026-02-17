@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import AgentModal from './AgentModal';
 
-function RepositoryCard({ repoData }) {
+function RepositoryCard({ repoData, token }) {
   const { repo, insights, recommendations } = repoData;
+  const [selectedRec, setSelectedRec] = useState(null);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -43,10 +45,20 @@ function RepositoryCard({ repoData }) {
       <div className="recommendations">
         <h4>💡 Anbefalinger ({recommendations.length})</h4>
         {recommendations.map((rec, index) => (
-          <div key={index} className={`recommendation priority-${rec.priority}`}>
+          <div
+            key={index}
+            className={`recommendation priority-${rec.priority} recommendation-clickable`}
+            onClick={() => rec.priority !== 'info' && setSelectedRec(rec)}
+            title={rec.priority !== 'info' ? 'Klikk for å la Copilot fikse dette' : ''}
+          >
             <div className="rec-header">
               <span className="rec-title">{rec.title}</span>
-              <span className="rec-priority">{rec.priority}</span>
+              <div className="rec-header-right">
+                <span className="rec-priority">{rec.priority}</span>
+                {rec.priority !== 'info' && (
+                  <span className="rec-agent-hint">🤖 Fix med Copilot</span>
+                )}
+              </div>
             </div>
             <div className="rec-description">{rec.description}</div>
             {rec.marketOpportunity && (
@@ -57,6 +69,15 @@ function RepositoryCard({ repoData }) {
           </div>
         ))}
       </div>
+
+      {selectedRec && (
+        <AgentModal
+          recommendation={selectedRec}
+          repo={repo}
+          token={token}
+          onClose={() => setSelectedRec(null)}
+        />
+      )}
     </div>
   );
 }

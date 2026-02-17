@@ -1,0 +1,126 @@
+import React, { useState } from 'react';
+
+function AgentModal({ recommendation, repo, token, onClose }) {
+  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+  const [issueUrl, setIssueUrl] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const handleConfirm = async () => {
+    setStatus('loading');
+    try {
+      const [owner, repoName] = repo.fullName.split('/');
+      const response = await fetch('/api/create-agent-issue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          owner,
+          repo: repoName,
+          recommendation,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Noe gikk galt');
+      }
+
+      setIssueUrl(data.issueUrl);
+      setStatus('success');
+    } catch (err) {
+      setErrorMessage(err.message);
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal">
+        <div className="modal-header">
+          <h2>🤖 La Copilot fikse dette?</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        {status === 'idle' && (
+          <>
+            <div className="modal-body">
+              <p className="modal-repo-name">📁 {repo.fullName}</p>
+              <div className={`modal-issue recommendation priority-${recommendation.priority}`}>
+                <div className="rec-header">
+                  <span className="rec-title">{recommendation.title}</span>
+                  <span className="rec-priority">{recommendation.priority}</span>
+                </div>
+                <div className="rec-description">{recommendation.description}</div>
+                {recommendation.marketOpportunity && (
+                  <div className="rec-opportunity">
+                    💼 {recommendation.marketOpportunity}
+                  </div>
+                )}
+              </div>
+              <p className="modal-confirm-text">
+                Dette vil opprette et GitHub issue med problembeskrivelsen og automatisk
+                tildele det til <strong>Copilot</strong>, slik at agenten starter å jobbe
+                med det umiddelbart.
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={onClose}>Avbryt</button>
+              <button className="btn-primary" onClick={handleConfirm}>
+                🚀 Ja, la Copilot fikse det!
+              </button>
+            </div>
+          </>
+        )}
+
+        {status === 'loading' && (
+          <div className="modal-body modal-status">
+            <div className="spinner" />
+            <p>Oppretter issue og tildeler til Copilot...</p>
+          </div>
+        )}
+
+        {status === 'success' && (
+          <>
+            <div className="modal-body modal-status">
+              <div className="status-icon success">✅</div>
+              <h3>Issue opprettet!</h3>
+              <p>Copilot er nå tildelt og vil begynne å jobbe med problemet.</p>
+              <a
+                href={issueUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="issue-link"
+              >
+                🔗 Åpne issue på GitHub
+              </a>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-primary" onClick={onClose}>Lukk</button>
+            </div>
+          </>
+        )}
+
+        {status === 'error' && (
+          <>
+            <div className="modal-body modal-status">
+              <div className="status-icon error">❌</div>
+              <h3>Noe gikk galt</h3>
+              <p>{errorMessage}</p>
+            </div>
+            <div className="modal-actions">
+              <button className="btn-secondary" onClick={onClose}>Avbryt</button>
+              <button className="btn-primary" onClick={() => setStatus('idle')}>
+                Prøv igjen
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default AgentModal;

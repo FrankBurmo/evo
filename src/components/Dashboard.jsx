@@ -186,7 +186,8 @@ function Dashboard({ token, onLogout }) {
           {filteredRepos.map((repoData) => (
             <RepositoryCard 
               key={repoData.repo.fullName} 
-              repoData={repoData} 
+              repoData={repoData}
+              token={token}
             />
           ))}
         </div>

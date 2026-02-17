@@ -216,6 +216,132 @@ app.get('/api/repo/:owner/:name', async (req, res) => {
   }
 });
 
+app.post('/api/create-agent-issue', async (req, res) => {
+  try {
+    const { owner, repo: repoName, recommendation } = req.body;
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token && !process.env.GITHUB_TOKEN) {
+      return res.status(401).json({ error: 'GitHub token required' });
+    }
+
+    if (!owner || !repoName || !recommendation) {
+      return res.status(400).json({ error: 'Missing required fields: owner, repo, recommendation' });
+    }
+
+    const octokit = getOctokit(token);
+
+    const issueTitle = `[Copilot Agent] ${recommendation.title}`;
+    const issueBody = `## 🤖 Copilot Agent Task
+
+This issue was automatically created by **Product Orchestrator** and assigned to Copilot for automated resolution.
+
+---
+
+### 📋 Problem Description
+
+**${recommendation.title}**
+
+${recommendation.description}
+
+${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendation.marketOpportunity}\n` : ''}
+---
+
+### ✅ Acceptance Criteria
+
+- [ ] The issue described above is resolved
+- [ ] Changes are tested and working
+- [ ] A pull request is submitted with the fix
+
+---
+
+*This issue was created automatically by [Product Orchestrator](https://github.com). Priority: \`${recommendation.priority}\`*
+`;
+
+    // Create the issue
+    const { data: issue } = await octokit.issues.create({
+      owner,
+      repo: repoName,
+      title: issueTitle,
+      body: issueBody,
+      assignees: ['copilot'],
+      labels: (() => {
+        const labels = ['copilot'];
+        if (recommendation.priority === 'high') labels.push('priority: high');
+        if (recommendation.type) labels.push(recommendation.type);
+        return labels;
+      })(),
+    });
+
+    res.json({
+      success: true,
+      issueUrl: issue.html_url,
+      issueNumber: issue.number,
+    });
+  } catch (error) {
+    console.error('Error creating agent issue:', error);
+
+    // GitHub returns 422 if assignee doesn't exist — still return the issue URL if possible
+    if (error.status === 422 && error.response?.data?.errors) {
+      // Re-try without the copilot assignee but keep the label
+      try {
+        const { owner, repo: repoName, recommendation } = req.body;
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        const octokit = getOctokit(token);
+
+        const issueTitle = `[Copilot Agent] ${recommendation.title}`;
+        const issueBody = `## 🤖 Copilot Agent Task
+
+This issue was automatically created by **Product Orchestrator**. Assign to @copilot to start automated resolution.
+
+---
+
+### 📋 Problem Description
+
+**${recommendation.title}**
+
+${recommendation.description}
+
+${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendation.marketOpportunity}\n` : ''}
+---
+
+### ✅ Acceptance Criteria
+
+- [ ] The issue described above is resolved
+- [ ] Changes are tested and working
+- [ ] A pull request is submitted with the fix
+
+---
+
+*This issue was created automatically by [Product Orchestrator](https://github.com). Priority: \`${recommendation.priority}\`*
+`;
+
+        const { data: issue } = await octokit.issues.create({
+          owner,
+          repo: repoName,
+          title: issueTitle,
+          body: issueBody,
+          labels: ['copilot'],
+        });
+
+        return res.json({
+          success: true,
+          issueUrl: issue.html_url,
+          issueNumber: issue.number,
+          note: 'Issue created, but Copilot could not be assigned directly. Make sure GitHub Copilot is enabled for this repository.',
+        });
+      } catch (retryError) {
+        console.error('Retry also failed:', retryError);
+      }
+    }
+
+    res.status(500).json({
+      error: 'Failed to create issue',
+      message: error.message,
+    });
+  }
+});
+
 app.listen(port, () => {
   console.log(`Product Orchestrator API running on port ${port}`);
   console.log(`Visit http://localhost:${port}/api/health to check status`);
