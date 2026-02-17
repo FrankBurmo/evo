@@ -1,0 +1,37 @@
+{
+  "name": "product-orchestrator",
+  "version": "1.0.0",
+  "description": "Et verktøy med et dashboard som gjennomgår alle repos som brukeren har i github og kommer med anbefalinger for neste steg for hvert enkelt produkt. Man kan velge å fokusere på muligheter i markedet for å tilpasse produktet til dette. Skal være en orkestreringsplattform for å drive produktutviklingen videre",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node server/index.js",
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FrankBurmo/product-orchestrator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/FrankBurmo/product-orchestrator/issues"
+  },
+  "homepage": "https://github.com/FrankBurmo/product-orchestrator#readme",
+  "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.1.4",
+    "vite": "^7.3.1"
+  }
+}
