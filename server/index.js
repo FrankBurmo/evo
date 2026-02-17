@@ -386,6 +386,189 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
   });
 });
 
+// Guardrails: Architecture Analysis — create a deep-dive issue
+app.post('/api/guardrails/architecture-analysis', async (req, res) => {
+  const { owner, repo: repoName } = req.body;
+  const token = req.headers.authorization?.replace('Bearer ', '');
+
+  if (!token && !process.env.GITHUB_TOKEN) {
+    return res.status(401).json({ error: 'GitHub token required' });
+  }
+
+  if (!owner || !repoName) {
+    return res.status(400).json({ error: 'Missing required fields: owner, repo' });
+  }
+
+  const octokit = getOctokit(token);
+
+  const issueTitle = `[Arkitekturanalyse] Dyp teknisk gjennomgang av ${repoName}`;
+  const issueBody = `## 🏗️ Arkitekturanalyse — Dyp Teknisk Gjennomgang
+
+Dette issuet ble automatisk opprettet av **Product Orchestrator** og ber om en grundig teknisk analyse av dette repositoryet.
+
+---
+
+### 📋 Oppgavebeskrivelse
+
+Som en **erfaren software-arkitekt**, analyser hele dette repositoryet dypt og grundig. Gå gjennom all kode, konfigurasjon, mappestruktur, avhengigheter og arkitekturmønstre.
+
+### 🔍 Analysér følgende områder:
+
+1. **Overordnet arkitektur**
+   - Mappestruktur og organisering
+   - Separasjon av ansvar (Separation of Concerns)
+   - Arkitekturmønstre som brukes (MVC, Clean Architecture, Micro-services, osv.)
+   - Skalerbarhet og vedlikeholdbarhet
+
+2. **Kodekvalitet**
+   - Koding-standarder og konsistens
+   - Error handling og robusthet
+   - Typer og type-sikkerhet
+   - Gjenbruk av kode og DRY-prinsippet
+   - Kompleksitet (syklomatisk kompleksitet, nesting)
+
+3. **Avhengigheter og pakker**
+   - Utdaterte avhengigheter
+   - Unødvendige avhengigheter
+   - Sikkerhetssårbarheter i dependencies
+   - Bundle-størrelse og optimalisering
+
+4. **Testing**
+   - Testdekning og teststrategi
+   - Type tester (unit, integration, e2e)
+   - Test-kvalitet og vedlikeholdbarhet
+
+5. **Sikkerhet**
+   - Autentisering og autorisering
+   - Input-validering
+   - Hemmeligheter og miljøvariabler
+   - OWASP Top 10 relevante funn
+
+6. **Ytelse**
+   - Potensielle flaskehalser
+   - Caching-strategier
+   - Database-spørringer (om relevant)
+   - Frontend-ytelse (om relevant)
+
+7. **DevOps og CI/CD**
+   - Build-pipeline
+   - Miljø-konfigurasjon
+   - Docker/containerisering
+   - Deployment-strategi
+
+8. **Dokumentasjon**
+   - API-dokumentasjon
+   - README og onboarding
+   - Kode-kommentarer
+   - Arkitektur-dokumentasjon
+
+---
+
+### 📊 Forventet Output
+
+Lever en **detaljert rapport** med:
+
+1. **Executive Summary** — Overordnet vurdering (1-10 score) med 2-3 setninger
+2. **Styrker** — Hva som er bra og bør beholdes
+3. **Kritiske funn** — Ting som bør fikses umiddelbart
+4. **Anbefalinger** — Konkrete forbedringsforslag rangert etter prioritet (høy/middels/lav)
+5. **Teknisk gjeld** — Identifisert teknisk gjeld med estimert innsats for å løse
+6. **Veikart** — Foreslått rekkefølge for implementering av forbedringer
+
+For hver anbefaling, inkluder:
+- Beskrivelse av problemet
+- Hvorfor det er viktig
+- Konkret forslag til løsning (gjerne med kodeeksempler)
+- Estimert innsats (lav/middels/høy)
+
+---
+
+### ✅ Akseptansekriterier
+
+- [ ] Alle 8 analyseområder er dekket
+- [ ] Minimum 5 konkrete forbedringsforslag med kodeeksempler
+- [ ] Prioritert veikart for implementering
+- [ ] Executive summary med score
+
+---
+
+*Dette issuet ble automatisk opprettet av [Product Orchestrator](https://github.com/FrankBurmo/product-orchestrator). Guardrail: \`architecture-analysis\`*
+`;
+
+  let issue;
+  try {
+    const { data } = await octokit.issues.create({
+      owner,
+      repo: repoName,
+      title: issueTitle,
+      body: issueBody,
+      labels: ['copilot:run', 'architecture', 'tech-debt'],
+    });
+    issue = data;
+  } catch (error) {
+    console.error('Error creating architecture analysis issue:', error);
+    return res.status(500).json({ error: 'Failed to create issue', message: error.message });
+  }
+
+  // Try to assign Copilot agent
+  let copilotAssigned = false;
+  try {
+    const issueQuery = await octokit.graphql(
+      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $number) {
+            id
+          }
+        }
+      }`,
+      { owner, repo: repoName, number: issue.number }
+    );
+
+    const issueNodeId = issueQuery.repository.issue.id;
+
+    const actorsQuery = await octokit.graphql(
+      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+            nodes {
+              ... on User { id login __typename }
+              ... on Bot { id login __typename }
+            }
+          }
+        }
+      }`,
+      { owner, repo: repoName }
+    );
+
+    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
+      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
+    );
+
+    if (copilotBot) {
+      await octokit.graphql(
+        `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
+          replaceActorsForAssignable(input: $input) { __typename }
+        }`,
+        { input: { assignableId: issueNodeId, actorIds: [copilotBot.id] } }
+      );
+      copilotAssigned = true;
+      console.log(`✓ Architecture analysis issue #${issue.number} assigned to ${copilotBot.login}`);
+    }
+  } catch (assignError) {
+    console.warn('Copilot assignment failed for architecture analysis:', assignError.message);
+  }
+
+  return res.json({
+    success: true,
+    issueUrl: issue.html_url,
+    issueNumber: issue.number,
+    copilotAssigned,
+    note: copilotAssigned
+      ? 'Arkitekturanalyse-issue opprettet og tildelt Copilot-agent!'
+      : 'Issue opprettet, men Copilot-agent kunne ikke tildeles automatisk. Tildel manuelt om nødvendig.',
+  });
+});
+
 app.listen(port, () => {
   console.log(`Product Orchestrator API running on port ${port}`);
   console.log(`Visit http://localhost:${port}/api/health to check status`);
