@@ -273,7 +273,6 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
       repo: repoName,
       title: issueTitle,
       body: issueBody,
-      assignees: ["@copilot"], // Do not assign yet, as Copilot assignment is done via a separate endpoint
       labels,
     });
     issue = data;
@@ -285,29 +284,64 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
   // Step 2: Assign Copilot using the undocumented GitHub.com endpoint
   // This is the same endpoint the GitHub UI uses when clicking "Assign to Copilot"
   let copilotAssigned = false;
+  let assignmentMethod = null;
+
   try {
-    const response = await fetch(`https://github.com/${owner}/${repoName}/issues/agent_assignments`, {
+    const assignmentUrl = `https://github.com/${owner}/${repoName}/issues/agent_assignments`;
+    const assignmentPayload = {
+      issue_ids: [issue.number],
+      repo_name_with_owner: `${owner}/${repoName}`,
+      base_ref: 'main',
+      custom_instructions: '',
+    };
+
+    console.log('Method 1: Attempting Copilot assignment via GitHub UI endpoint...');
+    console.log('URL:', assignmentUrl);
+    console.log('Payload:', JSON.stringify(assignmentPayload, null, 2));
+
+    const response = await fetch(assignmentUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token || process.env.GITHUB_TOKEN}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },
-      body: JSON.stringify({
-        issue_ids: [issue.number],
-        repo_name_with_owner: `${owner}/${repoName}`,
-      }),
+      body: JSON.stringify(assignmentPayload),
     });
+
+    console.log('Response status:', response.status, response.statusText);
 
     if (response.ok) {
       copilotAssigned = true;
-      console.log(`Issue #${issue.number} created and Copilot assigned via GitHub UI endpoint.`);
+      assignmentMethod = 'github-ui-endpoint';
+      const responseData = await response.text();
+      console.log(`✓ Issue #${issue.number} - Copilot assigned successfully via UI endpoint!`);
+      console.log('Response:', responseData);
     } else {
       const errorText = await response.text();
-      console.warn(`Copilot assignment via GitHub endpoint failed (${response.status}):`, errorText);
+      console.warn(`✗ Method 1 failed (${response.status}):`, errorText);
+      throw new Error(`GitHub UI endpoint returned ${response.status}`);
     }
   } catch (assignError) {
-    console.warn('Copilot assignment failed:', assignError.message);
+    console.warn('✗ Method 1 (UI endpoint) failed:', assignError.message);
+    
+    // Fallback: Try adding a comment that triggers Copilot workspace
+    try {
+      console.log('Method 2: Attempting agent assignment via GitHub assignees API...');
+      
+      await octokit.issues.addAssignees({
+        owner,
+        repo: repoName,
+        issue_number: issue.number,
+        assignees: ['min-kode-agent'],
+      });
+
+      copilotAssigned = true;
+      assignmentMethod = 'assignees-api';
+      console.log(`✓ Issue #${issue.number} - min-kode-agent assigned via API!`);
+    } catch (assigneeError) {
+      console.warn('✗ Method 2 (assignees API) also failed:', assigneeError.message);
+    }
   }
 
   return res.json({
@@ -315,8 +349,12 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
     issueUrl: issue.html_url,
     issueNumber: issue.number,
     copilotAssigned,
+    assignmentMethod,
+    ...(copilotAssigned && assignmentMethod === 'assignees-api' && {
+      note: 'Issue created and assigned to min-kode-agent via GitHub API.',
+    }),
     ...(!copilotAssigned && {
-      note: 'Issue created, but Copilot could not be assigned automatically. Make sure GitHub Copilot coding agent is enabled for this repository, then click "Assign to Copilot" in the issue.',
+      note: 'Issue created, but min-kode-agent could not be assigned automatically. Please assign min-kode-agent manually in the issue.',
     }),
   });
 });
