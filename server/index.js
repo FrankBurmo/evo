@@ -281,21 +281,32 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
     return res.status(500).json({ error: 'Failed to create issue', message: error.message });
   }
 
-  // Step 2: Assign Copilot via a separate assignees call.
-  // GitHub requires the issue to exist before Copilot can be assigned.
+  // Step 2: Assign Copilot using the undocumented GitHub.com endpoint
+  // This is the same endpoint the GitHub UI uses when clicking "Assign to Copilot"
   let copilotAssigned = false;
   try {
-    await octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
-      owner,
-      repo: repoName,
-      issue_number: issue.number,
-      assignees: ['copilot'],
-      headers: { 'X-GitHub-Api-Version': '2022-11-28' },
+    const response = await fetch(`https://github.com/${owner}/${repoName}/issues/agent_assignments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token || process.env.GITHUB_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        issue_ids: [issue.number],
+        repo_name_with_owner: `${owner}/${repoName}`,
+      }),
     });
-    copilotAssigned = true;
+
+    if (response.ok) {
+      copilotAssigned = true;
+      console.log(`Issue #${issue.number} created and Copilot assigned via GitHub UI endpoint.`);
+    } else {
+      const errorText = await response.text();
+      console.warn(`Copilot assignment via GitHub endpoint failed (${response.status}):`, errorText);
+    }
   } catch (assignError) {
-    // Non-fatal: issue is created, assignment may require Copilot to be enabled on the repo
-    console.warn('Copilot assignment failed (is Copilot enabled for this repo?):', assignError.message);
+    console.warn('Copilot assignment failed:', assignError.message);
   }
 
   return res.json({
