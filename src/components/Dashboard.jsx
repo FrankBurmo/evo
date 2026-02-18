@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import RepositoryCard from './RepositoryCard';
 import GuardrailsPanel from './GuardrailsPanel';
+import ProductDevelopmentPanel from './ProductDevelopmentPanel';
 
 function Dashboard({ token, onLogout }) {
   const [repos, setRepos] = useState([]);
@@ -143,6 +144,8 @@ function Dashboard({ token, onLogout }) {
       </div>
 
       <GuardrailsPanel repos={repos} token={token} />
+
+      <ProductDevelopmentPanel repos={repos} token={token} />
 
       <div className="filters">
         <h3>📊 Filtrer repositories</h3>
