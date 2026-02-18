@@ -858,14 +858,16 @@ body {
   }
 
   .guardrail-item,
-  .productdev-item {
+  .productdev-item,
+  .engvelocity-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 10px;
   }
 
   .guardrail-controls,
-  .productdev-controls {
+  .productdev-controls,
+  .engvelocity-controls {
     margin-left: 0;
   }
 }
@@ -1037,4 +1039,173 @@ body {
 
 .productdev-btn {
   background: linear-gradient(135deg, #43a047, #1b5e20) !important;
+}
+
+/* ─── Engineering Velocity Panel ────────────────────────────────────────── */
+
+.engvelocity-panel {
+  max-width: 1200px;
+  margin: 0 auto 30px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.engvelocity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.engvelocity-header:hover {
+  background: #fffbf0;
+}
+
+.engvelocity-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.engvelocity-header h3 {
+  color: #e65100;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.engvelocity-badge {
+  font-size: 0.78rem;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff6f00, #e65100);
+  color: white;
+  font-weight: 600;
+}
+
+.engvelocity-toggle-btn {
+  background: none;
+  border: none;
+  font-size: 0.9rem;
+  color: #888;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.engvelocity-content {
+  padding: 0 24px 24px;
+  animation: engvelocity-expand 0.2s ease;
+}
+
+@keyframes engvelocity-expand {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.engvelocity-description {
+  font-size: 0.88rem;
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.engvelocity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.engvelocity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 2px solid #ffe0b2;
+  transition: all 0.2s;
+}
+
+.engvelocity-item.enabled {
+  border-color: #ffcc80;
+  background: #fff8f0;
+}
+
+.engvelocity-item.disabled {
+  border-color: #e8e8e8;
+  background: #fafafa;
+  opacity: 0.7;
+}
+
+.engvelocity-info {
+  flex: 1;
+}
+
+.engvelocity-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+}
+
+.engvelocity-icon {
+  font-size: 1.1rem;
+}
+
+.engvelocity-category {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ecat-cicd        { background: #fff3e0; color: #e65100; }
+.ecat-dora        { background: #e8eaf6; color: #283593; }
+.ecat-observability { background: #e0f7fa; color: #006064; }
+.ecat-release     { background: #f3e5f5; color: #6a1b9a; }
+.ecat-community   { background: #e8f5e9; color: #1b5e20; }
+
+.engvelocity-desc {
+  font-size: 0.82rem;
+  color: #888;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.engvelocity-controls {
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+.engvelocity-trigger-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: linear-gradient(135deg, #fff8f0, #fff3e0);
+  border-radius: 10px;
+  border: 2px solid #ffcc80;
+}
+
+.engvelocity-trigger-section h4 {
+  color: #e65100;
+  margin-bottom: 8px;
+  font-size: 1.05rem;
+}
+
+.engvelocity-trigger-section > p {
+  font-size: 0.88rem;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.engvelocity-btn {
+  background: linear-gradient(135deg, #ff6f00, #e65100) !important;
 }
