@@ -25,4 +25,8 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Europe/Oslo"
+    groups:
+      all:
+        patterns:
+          - "*"
     open-pull-requests-limit: 5
