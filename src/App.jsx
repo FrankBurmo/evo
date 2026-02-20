@@ -53,40 +53,39 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <div className="header">
-        <h1>🚀 Product Orchestrator</h1>
-        <p>Analyser dine GitHub repositories og få anbefalinger for produktutvikling</p>
+    <div className="auth-wrapper">
+      <div className="auth-hero">
+        <div className="auth-hero-logo">⚡</div>
+        <h1>Product Orchestrator</h1>
+        <p>Analyser dine GitHub repositories og få AI-drevne anbefalinger for produktutvikling</p>
       </div>
 
       <div className="auth-section">
-        <h2>Logg inn med GitHub Token</h2>
+        <h2>Koble til GitHub</h2>
+        <p className="auth-subtitle">Skriv inn ditt Personal Access Token for å starte</p>
         <form onSubmit={handleLogin}>
-          <input
-            type="password"
-            placeholder="GitHub Personal Access Token"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            disabled={isLoading}
-          />
+          <div className="input-group">
+            <label>GitHub Token</label>
+            <input
+              type="password"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              disabled={isLoading}
+            />
+          </div>
           <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Logger inn...' : 'Start analyse'}
+            {isLoading ? 'Kobler til...' : 'Start analyse →'}
           </button>
         </form>
 
-        {error && <div className="error" style={{ marginTop: '15px' }}>{error}</div>}
+        {error && <div className="error" style={{ marginTop: '14px', padding: '12px 14px', fontSize: '0.87rem' }}>{error}</div>}
 
         <div className="info">
-          <strong>💡 Trenger du hjelp?</strong>
-          <p>
-            Du trenger en GitHub Personal Access Token med <code>repo</code> tilgang.
-            <br />
-            Lag en ny token på:{' '}
-            <a 
-              href="https://github.com/settings/tokens/new" 
-              target="_blank" 
-              rel="noopener noreferrer"
-            >
+          <strong>Trenger du hjelp?</strong>
+          <p style={{ marginTop: '4px' }}>
+            Token trenger <code style={{ background: 'rgba(108,99,255,0.15)', padding: '1px 5px', borderRadius: '4px', fontSize: '0.85em' }}>repo</code> tilgang. Lag den på{' '}
+            <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener noreferrer">
               github.com/settings/tokens
             </a>
           </p>

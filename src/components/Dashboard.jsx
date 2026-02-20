@@ -80,9 +80,18 @@ function Dashboard({ token, onLogout }) {
     return (
       <div className="app">
         <div className="header">
-          <h1>🚀 Product Orchestrator</h1>
+          <div className="header-brand">
+            <div className="header-logo">⚡</div>
+            <div className="header-title">
+              <h1>Product Orchestrator</h1>
+              <p>AI-drevet repository-analyse</p>
+            </div>
+          </div>
         </div>
-        <div className="loading">Laster repositories...</div>
+        <div className="loading">
+          Laster repositories...
+          <div className="loading-bar" />
+        </div>
       </div>
     );
   }
@@ -91,12 +100,18 @@ function Dashboard({ token, onLogout }) {
     return (
       <div className="app">
         <div className="header">
-          <h1>🚀 Product Orchestrator</h1>
+          <div className="header-brand">
+            <div className="header-logo">⚡</div>
+            <div className="header-title">
+              <h1>Product Orchestrator</h1>
+              <p>AI-drevet repository-analyse</p>
+            </div>
+          </div>
         </div>
-        <div className="error">
-          <h3>Feil oppstod</h3>
-          <p>{error}</p>
-          <button onClick={onLogout} style={{ marginTop: '10px' }}>Logg ut</button>
+        <div className="error" style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <h3 style={{ marginBottom: '8px', fontSize: '1rem' }}>Feil oppstod</h3>
+          <p style={{ fontSize: '0.88rem' }}>{error}</p>
+          <button onClick={onLogout} style={{ marginTop: '14px', padding: '8px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: 'inherit', cursor: 'pointer', fontSize: '0.87rem' }}>Logg ut</button>
         </div>
       </div>
     );
@@ -107,22 +122,33 @@ function Dashboard({ token, onLogout }) {
   return (
     <div className="app">
       <div className="header">
-        <h1>🚀 Product Orchestrator</h1>
-        <p>Analyser og optimaliser dine GitHub repositories</p>
-        <button 
-          onClick={onLogout} 
-          style={{ 
-            marginTop: '10px', 
-            padding: '8px 20px',
-            background: 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: '2px solid white',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}
-        >
-          Logg ut
-        </button>
+        <div className="header-brand">
+          <div className="header-logo">⚡</div>
+          <div className="header-title">
+            <h1>Product Orchestrator</h1>
+            <p>Analyser og optimaliser dine GitHub repositories</p>
+          </div>
+        </div>
+        <div className="header-actions">
+          <span className="status-dot">live</span>
+          <button
+            onClick={onLogout}
+            style={{
+              padding: '7px 16px',
+              background: 'rgba(255,255,255,0.06)',
+              color: 'rgba(255,255,255,0.6)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.82rem',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.9)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='rgba(255,255,255,0.6)'; }}
+          >
+            Logg ut
+          </button>
+        </div>
       </div>
 
       <div className="stats">
@@ -151,7 +177,7 @@ function Dashboard({ token, onLogout }) {
       <EngineeringVelocityPanel repos={repos} token={token} />
 
       <div className="filters">
-        <h3>📊 Filtrer repositories</h3>
+        <h3>Filtrer repositories</h3>
         <div className="filter-options">
           <div 
             className={`filter-option ${filter === 'all' ? 'active' : ''}`}
