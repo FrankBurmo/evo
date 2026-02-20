@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import RepositoryCard from './RepositoryCard';
 import GuardrailsPanel from './GuardrailsPanel';
 import ProductDevelopmentPanel from './ProductDevelopmentPanel';
@@ -11,15 +11,7 @@ function Dashboard({ token, onLogout }) {
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => {
-    fetchRepositories();
-  }, []);
-
-  useEffect(() => {
-    applyFilter();
-  }, [repos, filter]);
-
-  const fetchRepositories = async () => {
+  const fetchRepositories = useCallback(async () => {
     setIsLoading(true);
     setError('');
 
@@ -41,26 +33,30 @@ function Dashboard({ token, onLogout }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchRepositories();
+  }, [fetchRepositories]);
+
+  useEffect(() => {
+    applyFilter();
+  }, [repos, filter]);
 
   const applyFilter = () => {
     if (filter === 'all') {
       setFilteredRepos(repos);
     } else if (filter === 'market-opportunities') {
-      // Filter repos that have market opportunity recommendations
       setFilteredRepos(repos.filter(repo => 
         repo.recommendations.some(rec => rec.marketOpportunity)
       ));
     } else if (filter === 'needs-attention') {
-      // Filter repos with high priority recommendations
       setFilteredRepos(repos.filter(repo => 
         repo.recommendations.some(rec => rec.priority === 'high')
       ));
     } else if (filter === 'active') {
-      // Filter repos with recent activity
       setFilteredRepos(repos.filter(repo => repo.insights.recentActivity));
     } else if (filter === 'inactive') {
-      // Filter repos without recent activity
       setFilteredRepos(repos.filter(repo => !repo.insights.recentActivity));
     }
   };

@@ -7,8 +7,41 @@ const { Octokit } = require('@octokit/rest');
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors());
+// Restrict CORS to the configured frontend origin (defaults to localhost dev servers)
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : ['http://localhost:3000', 'http://localhost:5173'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman) only in development
+    if (!origin) {
+      if (process.env.NODE_ENV === 'production') {
+        return callback(new Error('Origin required in production'));
+      }
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+}));
 app.use(express.json());
+
+// Validate GitHub owner/repo name segments to prevent unexpected characters
+const GITHUB_OWNER_RE = /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/;
+const GITHUB_REPO_RE = /^[a-zA-Z0-9._-]{1,100}$/;
+
+function validateOwnerRepo(owner, repo) {
+  if (!owner || !GITHUB_OWNER_RE.test(owner)) {
+    return 'Invalid owner name';
+  }
+  if (!repo || !GITHUB_REPO_RE.test(repo)) {
+    return 'Invalid repository name';
+  }
+  return null;
+}
 
 // Rate limiting
 const limiter = rateLimit({
@@ -25,6 +58,56 @@ const getOctokit = (token) => {
     auth: token || process.env.GITHUB_TOKEN
   });
 };
+
+// Shared helper — assign the Copilot bot to a GitHub issue via GraphQL.
+// Returns true when assignment succeeded, false otherwise (never throws).
+async function assignCopilotToIssue(octokit, owner, repoName, issueNumber) {
+  try {
+    const issueQuery = await octokit.graphql(
+      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) {
+          issue(number: $number) { id }
+        }
+      }`,
+      { owner, repo: repoName, number: issueNumber }
+    );
+
+    const issueNodeId = issueQuery.repository.issue.id;
+
+    const actorsQuery = await octokit.graphql(
+      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
+        repository(owner: $owner, name: $repo) {
+          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
+            nodes {
+              ... on User { id login __typename }
+              ... on Bot  { id login __typename }
+            }
+          }
+        }
+      }`,
+      { owner, repo: repoName }
+    );
+
+    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
+      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
+    );
+
+    if (!copilotBot) return false;
+
+    await octokit.graphql(
+      `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
+        replaceActorsForAssignable(input: $input) { __typename }
+      }`,
+      { input: { assignableId: issueNodeId, actorIds: [copilotBot.id] } }
+    );
+
+    console.log(`✓ Issue #${issueNumber} assigned to ${copilotBot.login}`);
+    return true;
+  } catch (err) {
+    console.warn(`Copilot assignment failed for issue #${issueNumber}:`, err.message);
+    return false;
+  }
+}
 
 // Analyze repository and provide recommendations
 function analyzeRepository(repo) {
@@ -200,6 +283,11 @@ app.get('/api/repo/:owner/:name', async (req, res) => {
       });
     }
 
+    const validationError = validateOwnerRepo(owner, name);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+
     const octokit = getOctokit(token);
     
     const { data: repo } = await octokit.repos.get({
@@ -228,6 +316,11 @@ app.post('/api/create-agent-issue', async (req, res) => {
 
   if (!owner || !repoName || !recommendation) {
     return res.status(400).json({ error: 'Missing required fields: owner, repo, recommendation' });
+  }
+
+  const validationError = validateOwnerRepo(owner, repoName);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
   }
 
   const octokit = getOctokit(token);
@@ -279,108 +372,17 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
     return res.status(500).json({ error: 'Failed to create issue', message: error.message });
   }
 
-  // Step 2: Assign Copilot using GitHub GraphQL API
-  // This is the same method GitHub CLI uses: replaceActorsForAssignable mutation
-  let copilotAssigned = false;
-  let assignmentMethod = null;
-
-  try {
-    console.log('Attempting Copilot assignment via GitHub GraphQL (same as gh CLI)...');
-    
-    // Step 2a: Get the issue's node ID via GraphQL
-    console.log('Step 1: Fetching issue node ID...');
-    const issueQuery = await octokit.graphql(
-      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) {
-            id
-          }
-        }
-      }`,
-      {
-        owner,
-        repo: repoName,
-        number: issue.number,
-      }
-    );
-    
-    const issueNodeId = issueQuery.repository.issue.id;
-    console.log('Issue node ID:', issueNodeId);
-
-    // Step 2b: Get assignable actors to find Copilot's ID
-    console.log('Step 2: Fetching assignable actors...');
-    const actorsQuery = await octokit.graphql(
-      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-            nodes {
-              ... on User {
-                id
-                login
-                __typename
-              }
-              ... on Bot {
-                id
-                login
-                __typename
-              }
-            }
-          }
-        }
-      }`,
-      {
-        owner,
-        repo: repoName,
-      }
-    );
-
-    // Find Copilot bot (login: "copilot-swe-agent" or your custom agent)
-    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
-      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
-    );
-
-    if (!copilotBot) {
-      throw new Error('Copilot bot not found in assignable actors. Make sure Copilot is enabled for this repository.');
-    }
-
-    console.log('Found bot:', copilotBot.login, 'with ID:', copilotBot.id);
-
-    // Step 2c: Assign using GraphQL mutation
-    console.log('Step 3: Assigning via replaceActorsForAssignable mutation...');
-    await octokit.graphql(
-      `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
-        replaceActorsForAssignable(input: $input) {
-          __typename
-        }
-      }`,
-      {
-        input: {
-          assignableId: issueNodeId,
-          actorIds: [copilotBot.id],
-        },
-      }
-    );
-
-    copilotAssigned = true;
-    assignmentMethod = 'graphql-mutation';
-    console.log(`✓ Issue #${issue.number} - ${copilotBot.login} assigned successfully via GraphQL!`);
-  } catch (assignError) {
-    console.warn('✗ GraphQL assignment failed:', assignError.message);
-    console.error('Full error:', assignError);
-  }
+  // Step 2: Assign Copilot via shared helper
+  const copilotAssigned = await assignCopilotToIssue(octokit, owner, repoName, issue.number);
 
   return res.json({
     success: true,
     issueUrl: issue.html_url,
     issueNumber: issue.number,
     copilotAssigned,
-    assignmentMethod,
-    ...(copilotAssigned && {
-      note: 'Issue created and assigned to Copilot agent successfully!',
-    }),
-    ...(!copilotAssigned && {
-      note: 'Issue created, but Copilot agent could not be assigned automatically. Make sure GitHub Copilot is enabled for this repository and try assigning manually.',
-    }),
+    note: copilotAssigned
+      ? 'Issue created and assigned to Copilot agent successfully!'
+      : 'Issue created, but Copilot agent could not be assigned automatically. Make sure GitHub Copilot is enabled for this repository and try assigning manually.',
   });
 });
 
@@ -395,6 +397,11 @@ app.post('/api/guardrails/architecture-analysis', async (req, res) => {
 
   if (!owner || !repoName) {
     return res.status(400).json({ error: 'Missing required fields: owner, repo' });
+  }
+
+  const validationError = validateOwnerRepo(owner, repoName);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
   }
 
   const octokit = getOctokit(token);
@@ -508,53 +515,8 @@ For hver anbefaling, inkluder:
     return res.status(500).json({ error: 'Failed to create issue', message: error.message });
   }
 
-  // Try to assign Copilot agent
-  let copilotAssigned = false;
-  try {
-    const issueQuery = await octokit.graphql(
-      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) {
-            id
-          }
-        }
-      }`,
-      { owner, repo: repoName, number: issue.number }
-    );
-
-    const issueNodeId = issueQuery.repository.issue.id;
-
-    const actorsQuery = await octokit.graphql(
-      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-            nodes {
-              ... on User { id login __typename }
-              ... on Bot { id login __typename }
-            }
-          }
-        }
-      }`,
-      { owner, repo: repoName }
-    );
-
-    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
-      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
-    );
-
-    if (copilotBot) {
-      await octokit.graphql(
-        `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
-          replaceActorsForAssignable(input: $input) { __typename }
-        }`,
-        { input: { assignableId: issueNodeId, actorIds: [copilotBot.id] } }
-      );
-      copilotAssigned = true;
-      console.log(`✓ Architecture analysis issue #${issue.number} assigned to ${copilotBot.login}`);
-    }
-  } catch (assignError) {
-    console.warn('Copilot assignment failed for architecture analysis:', assignError.message);
-  }
+  // Try to assign Copilot agent via shared helper
+  const copilotAssigned = await assignCopilotToIssue(octokit, owner, repoName, issue.number);
 
   return res.json({
     success: true,
@@ -929,6 +891,11 @@ app.post('/api/product-dev/:actionId', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: owner, repo' });
   }
 
+  const validationError = validateOwnerRepo(owner, repoName);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+
   const templateFn = PRODUCT_DEV_TEMPLATES[actionId];
   if (!templateFn) {
     return res.status(400).json({ error: `Unknown product-dev action: ${actionId}` });
@@ -952,51 +919,8 @@ app.post('/api/product-dev/:actionId', async (req, res) => {
     return res.status(500).json({ error: 'Failed to create issue', message: error.message });
   }
 
-  // Try to assign Copilot agent
-  let copilotAssigned = false;
-  try {
-    const issueQuery = await octokit.graphql(
-      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) { id }
-        }
-      }`,
-      { owner, repo: repoName, number: issue.number }
-    );
-
-    const issueNodeId = issueQuery.repository.issue.id;
-
-    const actorsQuery = await octokit.graphql(
-      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-            nodes {
-              ... on User { id login __typename }
-              ... on Bot { id login __typename }
-            }
-          }
-        }
-      }`,
-      { owner, repo: repoName }
-    );
-
-    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
-      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
-    );
-
-    if (copilotBot) {
-      await octokit.graphql(
-        `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
-          replaceActorsForAssignable(input: $input) { __typename }
-        }`,
-        { input: { assignableId: issueNodeId, actorIds: [copilotBot.id] } }
-      );
-      copilotAssigned = true;
-      console.log(`✓ Product-dev issue #${issue.number} (${actionId}) assigned to ${copilotBot.login}`);
-    }
-  } catch (assignError) {
-    console.warn(`Copilot assignment failed for ${actionId}:`, assignError.message);
-  }
+  // Try to assign Copilot agent via shared helper
+  const copilotAssigned = await assignCopilotToIssue(octokit, owner, repoName, issue.number);
 
   return res.json({
     success: true,
@@ -1004,7 +928,7 @@ app.post('/api/product-dev/:actionId', async (req, res) => {
     issueNumber: issue.number,
     copilotAssigned,
     note: copilotAssigned
-      ? `Produktutviklings-issue opprettet og tildelt Copilot-agent!`
+      ? 'Produktutviklings-issue opprettet og tildelt Copilot-agent!'
       : 'Issue opprettet, men Copilot-agent kunne ikke tildeles automatisk. Tildel manuelt om nødvendig.',
   });
 });
@@ -1374,6 +1298,11 @@ app.post('/api/engineering-velocity/:actionId', async (req, res) => {
     return res.status(400).json({ error: 'Missing required fields: owner, repo' });
   }
 
+  const validationError = validateOwnerRepo(owner, repoName);
+  if (validationError) {
+    return res.status(400).json({ error: validationError });
+  }
+
   const templateFn = ENGINEERING_VELOCITY_TEMPLATES[actionId];
   if (!templateFn) {
     return res.status(400).json({ error: `Unknown engineering-velocity action: ${actionId}` });
@@ -1397,51 +1326,8 @@ app.post('/api/engineering-velocity/:actionId', async (req, res) => {
     return res.status(500).json({ error: 'Failed to create issue', message: error.message });
   }
 
-  // Try to assign Copilot agent
-  let copilotAssigned = false;
-  try {
-    const issueQuery = await octokit.graphql(
-      `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
-        repository(owner: $owner, name: $repo) {
-          issue(number: $number) { id }
-        }
-      }`,
-      { owner, repo: repoName, number: issue.number }
-    );
-
-    const issueNodeId = issueQuery.repository.issue.id;
-
-    const actorsQuery = await octokit.graphql(
-      `query RepositoryAssignableActors($owner: String!, $repo: String!) {
-        repository(owner: $owner, name: $repo) {
-          suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
-            nodes {
-              ... on User { id login __typename }
-              ... on Bot { id login __typename }
-            }
-          }
-        }
-      }`,
-      { owner, repo: repoName }
-    );
-
-    const copilotBot = actorsQuery.repository.suggestedActors.nodes.find(
-      actor => actor.login === 'min-kode-agent' || actor.login === 'copilot-swe-agent'
-    );
-
-    if (copilotBot) {
-      await octokit.graphql(
-        `mutation ReplaceActorsForAssignable($input: ReplaceActorsForAssignableInput!) {
-          replaceActorsForAssignable(input: $input) { __typename }
-        }`,
-        { input: { assignableId: issueNodeId, actorIds: [copilotBot.id] } }
-      );
-      copilotAssigned = true;
-      console.log(`✓ Engineering-velocity issue #${issue.number} (${actionId}) assigned to ${copilotBot.login}`);
-    }
-  } catch (assignError) {
-    console.warn(`Copilot assignment failed for ${actionId}:`, assignError.message);
-  }
+  // Try to assign Copilot agent via shared helper
+  const copilotAssigned = await assignCopilotToIssue(octokit, owner, repoName, issue.number);
 
   return res.json({
     success: true,
