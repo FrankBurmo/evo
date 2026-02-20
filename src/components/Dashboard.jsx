@@ -83,8 +83,8 @@ function Dashboard({ token, onLogout }) {
           <div className="header-brand">
             <div className="header-logo">⚡</div>
             <div className="header-title">
-              <h1>Product Orchestrator</h1>
-              <p>AI-drevet repository-analyse</p>
+              <h1>Evo</h1>
+              <p>Produktene dine vokser kontinuerlig – automatisk.</p>
             </div>
           </div>
         </div>
@@ -103,8 +103,8 @@ function Dashboard({ token, onLogout }) {
           <div className="header-brand">
             <div className="header-logo">⚡</div>
             <div className="header-title">
-              <h1>Product Orchestrator</h1>
-              <p>AI-drevet repository-analyse</p>
+              <h1>Evo</h1>
+              <p>Produktene dine vokser kontinuerlig – automatisk.</p>
             </div>
           </div>
         </div>
@@ -125,8 +125,8 @@ function Dashboard({ token, onLogout }) {
         <div className="header-brand">
           <div className="header-logo">⚡</div>
           <div className="header-title">
-            <h1>Product Orchestrator</h1>
-            <p>Analyser og optimaliser dine GitHub repositories</p>
+            <h1>Evo</h1>
+            <p>Produktene dine vokser kontinuerlig – automatisk.</p>
           </div>
         </div>
         <div className="header-actions">

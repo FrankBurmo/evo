@@ -56,8 +56,8 @@ function App() {
     <div className="auth-wrapper">
       <div className="auth-hero">
         <div className="auth-hero-logo">⚡</div>
-        <h1>Product Orchestrator</h1>
-        <p>Analyser dine GitHub repositories og få AI-drevne anbefalinger for produktutvikling</p>
+        <h1>Evo</h1>
+        <p>Produktene dine vokser kontinuerlig – automatisk.</p>
       </div>
 
       <div className="auth-section">
