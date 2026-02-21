@@ -15,8 +15,8 @@
     "url": "git+https://github.com/FrankBurmo/product-orchestrator.git"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Frank Burmo",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/FrankBurmo/product-orchestrator/issues"

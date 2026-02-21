@@ -1,0 +1,40 @@
+{
+  "name": "evo-scan",
+  "version": "0.1.0",
+  "description": "Proaktiv GitHub-repo-analyse og issue-opprettelse – drevet av GitHub Copilot AI",
+  "main": "src/index.js",
+  "bin": {
+    "evo-scan": "./bin/evo-scan.js"
+  },
+  "scripts": {
+    "start": "node bin/evo-scan.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "github",
+    "copilot",
+    "cli",
+    "analysis",
+    "repository",
+    "issues",
+    "developer-tools"
+  ],
+  "author": "Frank Burmo",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FrankBurmo/product-orchestrator.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/FrankBurmo/product-orchestrator/issues"
+  },
+  "homepage": "https://github.com/FrankBurmo/product-orchestrator/tree/main/packages/cli#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.1",
+    "commander": "^13.1.0"
+  }
+}
