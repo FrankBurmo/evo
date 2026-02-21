@@ -117,4 +117,4 @@ Bidrag er velkomne! Åpne gjerne en issue eller send en pull request.
 
 ## Lisens 📄
 
-ISC
+MIT
