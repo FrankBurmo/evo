@@ -13,11 +13,12 @@ const {
   PRODUCT_DEV_TEMPLATES,
   ENGINEERING_VELOCITY_TEMPLATES,
 } = require('../templates');
+const { validateOwnerRepo } = require('../middleware/validate');
 
 const router = express.Router();
 
 // ── POST /api/create-agent-issue ────────────────────────────────────────────
-router.post('/create-agent-issue', async (req, res) => {
+router.post('/create-agent-issue', validateOwnerRepo, async (req, res) => {
   const { owner, repo: repoName, recommendation } = req.body;
   const token = extractToken(req);
 
@@ -101,7 +102,7 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
 });
 
 // ── POST /api/guardrails/architecture-analysis ──────────────────────────────
-router.post('/guardrails/architecture-analysis', async (req, res) => {
+router.post('/guardrails/architecture-analysis', validateOwnerRepo, async (req, res) => {
   const { owner, repo: repoName } = req.body;
   const token = extractToken(req);
 
@@ -152,7 +153,7 @@ router.post('/guardrails/architecture-analysis', async (req, res) => {
 });
 
 // ── POST /api/product-dev/:actionId ─────────────────────────────────────────
-router.post('/product-dev/:actionId', async (req, res) => {
+router.post('/product-dev/:actionId', validateOwnerRepo, async (req, res) => {
   const { actionId } = req.params;
   const { owner, repo: repoName } = req.body;
   const token = extractToken(req);
@@ -203,7 +204,7 @@ router.post('/product-dev/:actionId', async (req, res) => {
 });
 
 // ── POST /api/engineering-velocity/:actionId ────────────────────────────────
-router.post('/engineering-velocity/:actionId', async (req, res) => {
+router.post('/engineering-velocity/:actionId', validateOwnerRepo, async (req, res) => {
   const { actionId } = req.params;
   const { owner, repo: repoName } = req.body;
   const token = extractToken(req);

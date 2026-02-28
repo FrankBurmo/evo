@@ -18,6 +18,18 @@ updates:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
 
+  - package-ecosystem: "npm"
+    directory: "/packages/cli"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "cli"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
