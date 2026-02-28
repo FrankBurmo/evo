@@ -77,7 +77,11 @@ function printRepoResult(result, opts = {}) {
     ? `${c.dim}[privat]${c.reset}`
     : `${c.green}[offentlig]${c.reset}`;
 
-  console.log(`\n  ${c.bold}${c.blue}${repo.name}${c.reset} ${visibilityTag}`);
+  const projectTypeTag = repo.projectTypeLabel
+    ? ` ${c.dim}[${repo.projectTypeLabel}]${c.reset}`
+    : '';
+
+  console.log(`\n  ${c.bold}${c.blue}${repo.name}${c.reset} ${visibilityTag}${projectTypeTag}`);
   if (repo.description) {
     console.log(`  ${c.dim}${repo.description}${c.reset}`);
   }

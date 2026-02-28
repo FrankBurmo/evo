@@ -2,7 +2,97 @@
 
 /**
  * Regelbasert repo-analyse – portert og utvidet fra server/index.js
+ * Inkluderer lettvekts prosjekttypegjenkjenning fra metadata.
  */
+
+// ─── Prosjekttypegjenkjenning fra metadata ───────────────────────────────────
+
+/**
+ * Detekter prosjekttype basert kun på repo-metadata (språk, navn, topics).
+ * Brukes i rask analyse uten ekstra API-kall.
+ *
+ * @param {object} repo — rå repo-objekt fra GitHub API
+ * @returns {'web-app'|'android-app'|'api'|'library'|'docs'|'other'}
+ */
+function detectProjectType(repo) {
+  const lang = (repo.language || '').toLowerCase();
+  const name = (repo.name || '').toLowerCase();
+  const desc = (repo.description || '').toLowerCase();
+  const topics = (repo.topics || []).map(t => t.toLowerCase());
+
+  // Android-indikatorer
+  if (
+    lang === 'kotlin' || lang === 'java' ||
+    topics.some(t => ['android', 'android-app', 'mobile'].includes(t)) ||
+    name.includes('android')
+  ) {
+    if (
+      topics.some(t => ['android', 'android-app'].includes(t)) ||
+      name.includes('android') ||
+      desc.includes('android')
+    ) {
+      return 'android-app';
+    }
+  }
+
+  // Dokumentasjon
+  if (
+    topics.some(t => ['docs', 'documentation', 'docusaurus', 'mkdocs', 'jekyll'].includes(t)) ||
+    name.includes('docs') || name.includes('documentation') ||
+    desc.includes('dokumentasjon') || desc.includes('documentation')
+  ) {
+    return 'docs';
+  }
+
+  // Web-app
+  const webTopics = ['react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'web-app', 'frontend', 'webapp', 'website'];
+  if (
+    topics.some(t => webTopics.includes(t)) ||
+    lang === 'html' || lang === 'css' ||
+    (lang === 'typescript' && (name.includes('app') || name.includes('web') || name.includes('site') || name.includes('dashboard'))) ||
+    (lang === 'javascript' && (name.includes('app') || name.includes('web') || name.includes('site') || name.includes('dashboard')))
+  ) {
+    return 'web-app';
+  }
+
+  // API / Backend
+  const apiTopics = ['api', 'backend', 'server', 'rest', 'graphql', 'microservice'];
+  if (
+    topics.some(t => apiTopics.includes(t)) ||
+    name.includes('api') || name.includes('server') || name.includes('backend') ||
+    lang === 'go' || lang === 'python' || lang === 'ruby' || lang === 'php'
+  ) {
+    return 'api';
+  }
+
+  // Bibliotek / npm-pakke
+  const libTopics = ['library', 'npm', 'package', 'sdk', 'toolkit', 'cli'];
+  if (
+    topics.some(t => libTopics.includes(t)) ||
+    name.includes('lib') || name.includes('sdk') || name.includes('toolkit')
+  ) {
+    return 'library';
+  }
+
+  // Rust er ofte biblioteker
+  if (lang === 'rust') return 'library';
+
+  return 'other';
+}
+
+// ─── Prosjekttypelabeler ─────────────────────────────────────────────────────
+
+const PROJECT_TYPE_LABELS = {
+  'web-app': '🌐 Web-app',
+  'android-app': '📱 Android',
+  'api': '⚙️ API',
+  'library': '📦 Bibliotek',
+  'docs': '📚 Dokumentasjon',
+  'other': '📁 Annet',
+};
+
+// ─── Regelbasert analyse ─────────────────────────────────────────────────────
+
 function analyzeRepository(repo) {
   const recommendations = [];
 
@@ -106,6 +196,9 @@ function analyzeRepository(repo) {
     });
   }
 
+  // Prosjekttypegjenkjenning
+  const projectType = detectProjectType(repo);
+
   return {
     repo: {
       name: repo.name,
@@ -119,9 +212,11 @@ function analyzeRepository(repo) {
       updatedAt: repo.updated_at,
       visibility: repo.private ? 'private' : 'public',
       license: repo.license?.spdx_id || null,
+      projectType,
+      projectTypeLabel: PROJECT_TYPE_LABELS[projectType] || projectType,
     },
     recommendations,
   };
 }
 
-module.exports = { analyzeRepository };
+module.exports = { analyzeRepository, detectProjectType, PROJECT_TYPE_LABELS };

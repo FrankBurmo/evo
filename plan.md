@@ -57,9 +57,9 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **~~Ingen dyp kodeanalyse~~** — ✅ **Løst i fase 1**: `server/analyzer.js` henter filstruktur, kildekode, commits og kategoriserer prosjekttype
 - **Ingen proaktiv bulk-skanning fra UI** — ingen «Start skanning»-knapp, fremdriftsvising eller resultatoversikt
 - **Ingen schedulert kjøring** — mangler `proactive-scan.yml` workflow og `scan-config.json`
-- **Ingen prosjekttypegjenkjenning** — Android, web, API, etc. kategoriseres ikke
+- **Ingen prosjekttypegjenkjenning** — ~~Android, web, API, etc. kategoriseres ikke~~ ✅ **Løst**: `detectProjectTypeFromMetadata()` i både server og CLI
 - **Ingen dependency-analyse, sikkerhetsanalyse eller trendanalyse** (Fase 6)
-- **Ingen tester** — verken unit, integration eller e2e
+- **~~Ingen tester~~** ✅ **Løst**: Vitest for frontend (18 tester) + backend (53 tester) + CLI (35 tester) = 106 totalt
 
 ---
 
@@ -481,10 +481,10 @@ Opprettet av Product Orchestrator 🚀
 | 3 | AI-drevet repo-analyse i dashboard | 2 | ✅ | Høy | Integrert i `/api/repo/:owner/:name/deep` og `/api/scan/start` |
 | 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ✅ | Høy | Git Trees API, filtre-metrikker, config-henting, kodestruktur-analyse |
 | 5 | Bulk-skanning fra UI (ScanControl + godkjenn/avvis) | 4 | ✅ | Medium | Ferdig — seleksjon + batch |
-| 6 | Prosjekttypegjenkjenning | 1 | ❌ | Medium | Android/web/API/library-deteksjon |
+| 6 | Prosjekttypegjenkjenning | 1 | ✅ | Medium | `detectProjectTypeFromMetadata` i server + CLI |
 | 7 | `proactive-scan.yml` GitHub Actions workflow | 5 | ✅ | Medium | Ferdig — cron + dispatch + artefakt |
 | 8 | `scan-config.json` konfigurasjonsfil | 5 | ✅ | Medium | Ferdig — med JSON Schema |
-| 9 | Tester (unit + integration) | — | ❌ | Medium | Sett opp Vitest for frontend, Jest for CLI |
+| 9 | Tester (unit + integration) | — | ✅ | Medium | Vitest for frontend + backend + CLI (106 tester) |
 | 10 | Dependency-analyse | 6 | ❌ | Lav | npm audit / GitHub Advisory API |
 | 11 | Sikkerhetsanalyse | 6 | ❌ | Lav | OpenSSF Scorecard-integrasjon |
 | 12 | Trendanalyse og historikk | 6 | ❌ | Lav | Lagre skanningsresultater over tid |
