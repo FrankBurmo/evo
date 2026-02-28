@@ -262,6 +262,55 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
     parts.push(`Antall commits siste 30 dager: ${deepInsights.recentCommitsCount ?? 'ukjent'}`);
     parts.push(`Antall filer i rot: ${deepInsights.rootFileCount ?? 'ukjent'}`);
 
+    // Verktøy og konfigurasjon
+    if (deepInsights.hasTypeScript !== undefined) {
+      parts.push(`TypeScript: ${deepInsights.hasTypeScript ? 'ja' : 'nei'}`);
+    }
+    if (deepInsights.hasLinter !== undefined) {
+      parts.push(`Linter: ${deepInsights.hasLinter ? 'ja' : 'nei'}`);
+    }
+    if (deepInsights.hasFormatter !== undefined) {
+      parts.push(`Formatter: ${deepInsights.hasFormatter ? 'ja' : 'nei'}`);
+    }
+    if (deepInsights.hasDocker !== undefined) {
+      parts.push(`Docker: ${deepInsights.hasDocker ? 'ja' : 'nei'}`);
+    }
+    if (deepInsights.hasDependabot !== undefined) {
+      parts.push(`Dependabot: ${deepInsights.hasDependabot ? 'ja' : 'nei'}`);
+    }
+    if (deepInsights.hasLockfile !== undefined) {
+      parts.push(`Lockfile: ${deepInsights.hasLockfile ? 'ja' : 'nei'}`);
+    }
+
+    // Filtre-metrikker
+    if (deepInsights.fileTreeMetrics) {
+      const m = deepInsights.fileTreeMetrics;
+      parts.push('');
+      parts.push('--- Filstruktur-metrikker ---');
+      parts.push(`Totalt filer: ${m.totalFiles}, mapper: ${m.totalDirs}`);
+      parts.push(`Kodefiler: ${m.byCategory.code}, docs: ${m.byCategory.docs}, config: ${m.byCategory.config}, styles: ${m.byCategory.styles}`);
+      parts.push(`Testfiler: ${m.testFileCount}`);
+      parts.push(`Total kodestørrelse: ${(m.totalCodeSize / 1024).toFixed(1)} KB`);
+      parts.push(`Maks mappenivå: ${m.maxDepth}`);
+      if (m.sourceDirs.length > 0) {
+        parts.push(`Kilde-mapper: ${m.sourceDirs.join(', ')}`);
+      }
+      if (m.topExtensions.length > 0) {
+        parts.push(`Topp filtyper: ${m.topExtensions.map(e => `${e.ext} (${e.count})`).join(', ')}`);
+      }
+      if (m.topLevelDirs.length > 0) {
+        parts.push(`Toppnivå-mapper: ${m.topLevelDirs.join(', ')}`);
+      }
+    }
+
+    // Filtre-oversikt (komprimert)
+    if (deepInsights.fileTreeSummary && deepInsights.fileTreeSummary.length > 0) {
+      const totalFiles = deepInsights.fileTreeMetrics?.totalFiles || deepInsights.fileTreeSummary.length;
+      parts.push('');
+      parts.push(`--- Filtre (${deepInsights.fileTreeSummary.length} av ${totalFiles} filer) ---`);
+      parts.push(deepInsights.fileTreeSummary.join('\n'));
+    }
+
     if (deepInsights.readmeSummary) {
       parts.push(`\nREADME (utdrag):\n${deepInsights.readmeSummary}`);
     }
@@ -286,6 +335,30 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
 
     if (deepInsights.buildGradleContent) {
       parts.push(`\nbuild.gradle (utdrag):\n${deepInsights.buildGradleContent.slice(0, 2000)}`);
+    }
+
+    // Konfigurasjonsfiler
+    if (deepInsights.configFiles) {
+      const configNames = Object.keys(deepInsights.configFiles);
+      if (configNames.length > 0) {
+        parts.push('');
+        parts.push('--- Konfigurasjonsfiler ---');
+        for (const [fileName, content] of Object.entries(deepInsights.configFiles)) {
+          // Inkluder korte utdrag for å spare tokens
+          const truncated = content.length > 1000 ? content.slice(0, 1000) + '\n...(avkuttet)' : content;
+          parts.push(`\n${fileName}:\n${truncated}`);
+        }
+      }
+    }
+
+    // Workflow-filer
+    if (deepInsights.workflowFiles && deepInsights.workflowFiles.length > 0) {
+      parts.push('');
+      parts.push('--- GitHub Actions Workflows ---');
+      for (const wf of deepInsights.workflowFiles) {
+        const truncated = wf.content.length > 800 ? wf.content.slice(0, 800) + '\n...(avkuttet)' : wf.content;
+        parts.push(`\n${wf.name}:\n${truncated}`);
+      }
     }
   }
 

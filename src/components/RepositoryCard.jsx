@@ -1,9 +1,25 @@
 import React, { useState } from 'react';
 import AgentModal from './AgentModal';
 
+const PROJECT_TYPE_LABELS = {
+  'web-app': '🌐 Web-app',
+  'android-app': '📱 Android',
+  'api': '⚙️ API',
+  'library': '📦 Bibliotek',
+  'docs': '📚 Dokumentasjon',
+  'other': '📁 Annet',
+};
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 function RepositoryCard({ repoData, token }) {
-  const { repo, insights, recommendations } = repoData;
+  const { repo, insights, deepInsights, recommendations } = repoData;
   const [selectedRec, setSelectedRec] = useState(null);
+  const [showCodeInsights, setShowCodeInsights] = useState(false);
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -17,6 +33,8 @@ function RepositoryCard({ repoData, token }) {
     return `${Math.floor(diffDays / 365)} år siden`;
   };
 
+  const metrics = deepInsights?.fileTreeMetrics;
+
   return (
     <div className="repo-card">
       <div className="repo-header">
@@ -24,6 +42,9 @@ function RepositoryCard({ repoData, token }) {
           <a href={repo.url} target="_blank" rel="noopener noreferrer">
             {repo.name}
           </a>
+          {repo.projectType && (
+            <span className="repo-project-type">{PROJECT_TYPE_LABELS[repo.projectType] || repo.projectType}</span>
+          )}
         </h3>
         {repo.description && <p>{repo.description}</p>}
       </div>
@@ -42,6 +63,99 @@ function RepositoryCard({ repoData, token }) {
         </span>
       </div>
 
+      {/* Kodestruktur-innsikt */}
+      {metrics && (
+        <div className="code-insights">
+          <div
+            className="code-insights-toggle"
+            onClick={() => setShowCodeInsights(!showCodeInsights)}
+          >
+            <h4>📊 Kodestruktur</h4>
+            <span className="toggle-icon">{showCodeInsights ? '▲' : '▼'}</span>
+          </div>
+
+          <div className="code-insights-summary">
+            <span title="Kodefiler">{metrics.byCategory.code} kodefiler</span>
+            <span title="Total kodestørrelse">{formatBytes(metrics.totalCodeSize)}</span>
+            <span title="Testfiler">🧪 {metrics.testFileCount} tester</span>
+            <span title="Totalt filer">{metrics.totalFiles} filer</span>
+          </div>
+
+          {showCodeInsights && (
+            <div className="code-insights-details">
+              {/* Filtype-fordeling */}
+              <div className="insight-row">
+                <span className="insight-label">Filkategorier:</span>
+                <div className="insight-bar-chart">
+                  {Object.entries(metrics.byCategory)
+                    .filter(([, count]) => count > 0)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([cat, count]) => (
+                      <div key={cat} className="bar-item" title={`${cat}: ${count} filer`}>
+                        <div
+                          className={`bar bar-${cat}`}
+                          style={{ width: `${Math.max(8, (count / metrics.totalFiles) * 100)}%` }}
+                        />
+                        <span className="bar-label">{cat} ({count})</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+
+              {/* Topp filtyper */}
+              {metrics.topExtensions.length > 0 && (
+                <div className="insight-row">
+                  <span className="insight-label">Topp filtyper:</span>
+                  <div className="insight-tags">
+                    {metrics.topExtensions.slice(0, 6).map(({ ext, count }) => (
+                      <span key={ext} className="insight-tag">{ext || '(uten)'} ({count})</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Mappestruktur */}
+              {metrics.topLevelDirs.length > 0 && (
+                <div className="insight-row">
+                  <span className="insight-label">Toppnivå-mapper:</span>
+                  <div className="insight-tags">
+                    {metrics.topLevelDirs.map(dir => (
+                      <span key={dir} className="insight-tag insight-tag-dir">📁 {dir}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Verktøy-badges */}
+              {deepInsights && (
+                <div className="insight-row">
+                  <span className="insight-label">Verktøy:</span>
+                  <div className="insight-tags">
+                    {deepInsights.hasTypeScript && <span className="insight-badge badge-ts">TS</span>}
+                    {deepInsights.hasLinter && <span className="insight-badge badge-lint">Linter</span>}
+                    {deepInsights.hasFormatter && <span className="insight-badge badge-fmt">Formatter</span>}
+                    {deepInsights.hasDocker && <span className="insight-badge badge-docker">Docker</span>}
+                    {deepInsights.hasCI && <span className="insight-badge badge-ci">CI/CD</span>}
+                    {deepInsights.hasDependabot && <span className="insight-badge badge-dep">Dependabot</span>}
+                    {deepInsights.hasLockfile && <span className="insight-badge badge-lock">Lockfile</span>}
+                    {!deepInsights.hasTypeScript && !deepInsights.hasLinter && !deepInsights.hasCI && (
+                      <span className="insight-badge badge-none">Ingen verktøy oppdaget</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Mappenivå */}
+              <div className="insight-row">
+                <span className="insight-label">Mappenivå:</span>
+                <span className="insight-value">{metrics.maxDepth} nivåer, {metrics.totalDirs} mapper</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="recommendations">
         <h4>💡 Anbefalinger ({recommendations.length})</h4>
         {recommendations.map((rec, index) => (
@@ -52,7 +166,10 @@ function RepositoryCard({ repoData, token }) {
             title={rec.priority !== 'info' ? 'Klikk for å la Copilot fikse dette' : ''}
           >
             <div className="rec-header">
-              <span className="rec-title">{rec.title}</span>
+              <span className="rec-title">
+                {rec.source === 'ai' && <span className="rec-ai-badge">KI</span>}
+                {rec.title}
+              </span>
               <div className="rec-header-right">
                 <span className="rec-priority">{rec.priority}</span>
                 {rec.priority !== 'info' && (

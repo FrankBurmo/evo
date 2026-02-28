@@ -223,3 +223,191 @@
 .recommendation-clickable:hover .rec-agent-hint {
   opacity: 1;
 }
+
+/* ─── Project Type Badge ─────────────────────────────────────────── */
+
+.repo-project-type {
+  font-size: 0.68rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(108, 99, 255, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(108, 99, 255, 0.2);
+  margin-left: 8px;
+  font-weight: 500;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* ─── AI Badge on Recommendations ────────────────────────────────── */
+
+.rec-ai-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: linear-gradient(135deg, rgba(108, 99, 255, 0.25), rgba(0, 212, 255, 0.2));
+  color: var(--accent-2);
+  margin-right: 6px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+  border: 1px solid rgba(0, 212, 255, 0.25);
+}
+
+/* ─── Code Insights Section ──────────────────────────────────────── */
+
+.code-insights {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.code-insights-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.code-insights-toggle h4 {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.toggle-icon {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.code-insights-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.code-insights-summary span {
+  background: rgba(255, 255, 255, 0.04);
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+}
+
+.code-insights-details {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.insight-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.insight-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+.insight-value {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.insight-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.insight-tag {
+  font-size: 0.72rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.insight-tag-dir {
+  background: rgba(108, 99, 255, 0.08);
+  border-color: rgba(108, 99, 255, 0.15);
+}
+
+/* ─── Bar Chart (File Categories) ────────────────────────────────── */
+
+.insight-bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  min-width: 4px;
+  transition: width 0.3s ease;
+}
+
+.bar-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+.bar-code    { background: var(--accent); }
+.bar-docs    { background: var(--success); }
+.bar-config  { background: var(--warning); }
+.bar-styles  { background: var(--accent-2); }
+.bar-images  { background: rgba(255, 181, 71, 0.6); }
+.bar-other   { background: rgba(255, 255, 255, 0.15); }
+
+/* ─── Tool Badges ────────────────────────────────────────────────── */
+
+.insight-badge {
+  font-size: 0.65rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.badge-ts     { background: rgba(49, 120, 198, 0.2); color: #5b9bd5; border: 1px solid rgba(49, 120, 198, 0.3); }
+.badge-lint   { background: rgba(75, 50, 195, 0.15); color: #8b7fe8; border: 1px solid rgba(75, 50, 195, 0.25); }
+.badge-fmt    { background: rgba(0, 229, 160, 0.1); color: var(--success); border: 1px solid rgba(0, 229, 160, 0.2); }
+.badge-docker { background: rgba(0, 145, 255, 0.12); color: #4db8ff; border: 1px solid rgba(0, 145, 255, 0.2); }
+.badge-ci     { background: rgba(0, 212, 255, 0.1); color: var(--accent-2); border: 1px solid rgba(0, 212, 255, 0.2); }
+.badge-dep    { background: rgba(255, 181, 71, 0.1); color: var(--warning); border: 1px solid rgba(255, 181, 71, 0.2); }
+.badge-lock   { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border: 1px solid var(--border); }
+.badge-none   { background: rgba(255, 77, 106, 0.08); color: var(--danger); border: 1px solid rgba(255, 77, 106, 0.15); font-weight: 400; }

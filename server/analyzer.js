@@ -60,6 +60,43 @@ const DOCS_INDICATORS = [
 const TEST_DIRS = ['__tests__', 'test', 'tests', 'spec', 'specs', 'e2e', '__test__'];
 const TEST_FILE_PATTERNS = [/\.test\.[jt]sx?$/, /\.spec\.[jt]sx?$/, /Test\.java$/, /Tests\.cs$/, /test_.*\.py$/];
 
+// Konfigurasjonsfiler som er viktige for prosjektanalyse
+const CONFIG_FILES = [
+  // JavaScript/TypeScript
+  'tsconfig.json', 'jsconfig.json', '.eslintrc.json', '.eslintrc.js', '.eslintrc.yml',
+  'eslint.config.js', 'eslint.config.mjs', '.prettierrc', '.prettierrc.json',
+  'vitest.config.ts', 'vitest.config.js', 'jest.config.js', 'jest.config.ts',
+  // Docker
+  'Dockerfile', 'docker-compose.yml', 'docker-compose.yaml',
+  // CI/CD
+  '.github/dependabot.yml', '.github/CODEOWNERS',
+  // Python
+  'requirements.txt', 'pyproject.toml', 'setup.py', 'setup.cfg', 'Pipfile',
+  // Go
+  'go.mod', 'go.sum',
+  // Rust
+  'Cargo.toml',
+  // Ruby
+  'Gemfile',
+  // Env/Config
+  '.env.example', '.editorconfig', '.nvmrc', '.node-version',
+  // Other
+  'Makefile', 'justfile', 'turbo.json', 'nx.json', 'lerna.json',
+  'renovate.json', '.changeset/config.json',
+];
+
+// Filtyper for metrikk-aggregering
+const CODE_EXTENSIONS = new Set([
+  '.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs',
+  '.py', '.go', '.rs', '.java', '.kt', '.kts',
+  '.cs', '.rb', '.php', '.swift', '.m', '.c', '.cpp', '.h',
+  '.vue', '.svelte', '.astro',
+]);
+const DOC_EXTENSIONS = new Set(['.md', '.mdx', '.txt', '.rst', '.adoc']);
+const CONFIG_EXTENSIONS = new Set(['.json', '.yml', '.yaml', '.toml', '.xml', '.ini', '.cfg', '.env']);
+const STYLE_EXTENSIONS = new Set(['.css', '.scss', '.sass', '.less', '.styl']);
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.avif']);
+
 // ─── Regelbasert analyse (metadata-only) ─────────────────────────────────────
 
 /**
@@ -241,6 +278,200 @@ async function listDir(octokit, owner, repoName, dirPath) {
   }
 }
 
+// ─── Fullstendig filtre (Git Trees API) ──────────────────────────────────────
+
+/**
+ * Hent fullstendig filtre for et repo via Git Trees API (ett enkelt API-kall).
+ * Returnerer et flatt array av { path, type, size } for alle filer og mapper.
+ * Maks 100 000 oppføringer (GitHub-grense for recursive tree).
+ *
+ * @param {import('@octokit/rest').Octokit} octokit
+ * @param {string} owner
+ * @param {string} repoName
+ * @param {string} [defaultBranch='main'] — Branch som skal skannes
+ * @returns {Promise<Array<{path: string, type: 'blob'|'tree', size: number}>>}
+ */
+async function fetchRepoTree(octokit, owner, repoName, defaultBranch = 'main') {
+  try {
+    const { data } = await octokit.git.getTree({
+      owner,
+      repo: repoName,
+      tree_sha: defaultBranch,
+      recursive: 'true',
+    });
+    if (data.truncated) {
+      console.warn(`Filtre for ${owner}/${repoName} er avkuttet (>100k filer).`);
+    }
+    return (data.tree || []).map(item => ({
+      path: item.path,
+      type: item.type,   // 'blob' = fil, 'tree' = mappe
+      size: item.size || 0,
+    }));
+  } catch (err) {
+    // Fallback: prøv med 'master' om 'main' feiler
+    if (defaultBranch === 'main') {
+      try {
+        const { data } = await octokit.git.getTree({
+          owner,
+          repo: repoName,
+          tree_sha: 'master',
+          recursive: 'true',
+        });
+        return (data.tree || []).map(item => ({
+          path: item.path,
+          type: item.type,
+          size: item.size || 0,
+        }));
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  }
+}
+
+/**
+ * Analyser filtreet og generer metrikker om kodebasen.
+ *
+ * @param {Array<{path: string, type: string, size: number}>} tree
+ * @returns {object} Filtre-metrikker
+ */
+function analyzeFileTree(tree) {
+  const files = tree.filter(f => f.type === 'blob');
+  const dirs = tree.filter(f => f.type === 'tree');
+
+  // Toppnivå-mapper
+  const topLevelDirs = [...new Set(
+    tree
+      .filter(f => f.path.includes('/'))
+      .map(f => f.path.split('/')[0])
+  )].filter(d => dirs.some(dir => dir.path === d));
+
+  // Filtell per kategori
+  const byCategory = { code: 0, docs: 0, config: 0, styles: 0, images: 0, other: 0 };
+  const byExtension = {};
+  let totalCodeSize = 0;
+
+  for (const file of files) {
+    const ext = getExtension(file.path);
+    byExtension[ext] = (byExtension[ext] || 0) + 1;
+
+    if (CODE_EXTENSIONS.has(ext)) {
+      byCategory.code++;
+      totalCodeSize += file.size;
+    } else if (DOC_EXTENSIONS.has(ext)) {
+      byCategory.docs++;
+    } else if (CONFIG_EXTENSIONS.has(ext) || file.path.startsWith('.')) {
+      byCategory.config++;
+    } else if (STYLE_EXTENSIONS.has(ext)) {
+      byCategory.styles++;
+    } else if (IMAGE_EXTENSIONS.has(ext)) {
+      byCategory.images++;
+    } else {
+      byCategory.other++;
+    }
+  }
+
+  // Topp-utvidelser sortert
+  const topExtensions = Object.entries(byExtension)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([ext, count]) => ({ ext, count }));
+
+  // Testfiler
+  const testFiles = files.filter(f =>
+    TEST_DIRS.some(d => f.path.startsWith(d + '/') || f.path.includes('/' + d + '/')) ||
+    TEST_FILE_PATTERNS.some(p => p.test(f.path))
+  );
+
+  // Kilde-mapper (src, lib, app, packages)
+  const sourceDirs = topLevelDirs.filter(d =>
+    ['src', 'lib', 'app', 'packages', 'modules', 'components', 'pages', 'server', 'client', 'api'].includes(d.toLowerCase())
+  );
+
+  // Maks mappenivå
+  const maxDepth = files.reduce((max, f) => {
+    const depth = f.path.split('/').length;
+    return Math.max(max, depth);
+  }, 0);
+
+  return {
+    totalFiles: files.length,
+    totalDirs: dirs.length,
+    totalCodeSize,
+    topLevelDirs,
+    sourceDirs,
+    byCategory,
+    topExtensions,
+    testFileCount: testFiles.length,
+    maxDepth,
+  };
+}
+
+/**
+ * Hent filendelsen fra en sti.
+ */
+function getExtension(filePath) {
+  const base = filePath.split('/').pop() || '';
+  const dotIndex = base.lastIndexOf('.');
+  return dotIndex > 0 ? base.slice(dotIndex).toLowerCase() : '';
+}
+
+/**
+ * Hent innholdet av flere konfigurasjonsfiler som finnes i treet.
+ * Returnerer et objekt: { filnavn: innhold }.
+ *
+ * @param {import('@octokit/rest').Octokit} octokit
+ * @param {string} owner
+ * @param {string} repoName
+ * @param {Array<{path: string, type: string}>} tree — Fullt filtre
+ * @returns {Promise<Record<string, string>>}
+ */
+async function fetchConfigFiles(octokit, owner, repoName, tree) {
+  const treePathSet = new Set(tree.filter(f => f.type === 'blob').map(f => f.path));
+  const configsToFetch = CONFIG_FILES.filter(cf => treePathSet.has(cf));
+
+  // Begrens til maks 8 konfigurasjonsfiler for å spare API-kall
+  const limited = configsToFetch.slice(0, 8);
+
+  const results = {};
+  const fetches = limited.map(async (configPath) => {
+    const content = await fetchFileContent(octokit, owner, repoName, configPath);
+    if (content) {
+      results[configPath] = content;
+    }
+  });
+
+  await Promise.all(fetches);
+  return results;
+}
+
+/**
+ * Hent GitHub Actions workflow-filer fra treet.
+ *
+ * @param {import('@octokit/rest').Octokit} octokit
+ * @param {string} owner
+ * @param {string} repoName
+ * @param {Array<{path: string, type: string}>} tree
+ * @returns {Promise<Array<{name: string, content: string}>>}
+ */
+async function fetchWorkflowFiles(octokit, owner, repoName, tree) {
+  const workflowPaths = tree
+    .filter(f => f.type === 'blob' && f.path.startsWith('.github/workflows/') && (f.path.endsWith('.yml') || f.path.endsWith('.yaml')))
+    .slice(0, 5); // Maks 5 workflows
+
+  const workflows = [];
+  const fetches = workflowPaths.map(async (wf) => {
+    const content = await fetchFileContent(octokit, owner, repoName, wf.path);
+    if (content) {
+      workflows.push({ name: wf.path.split('/').pop(), content: content.slice(0, 3000) });
+    }
+  });
+
+  await Promise.all(fetches);
+  return workflows;
+}
+
 /**
  * Detekter prosjekttype basert på rotnivå-filer, README og package.json.
  * Returnerer: 'android-app' | 'web-app' | 'api' | 'library' | 'docs' | 'other'
@@ -315,42 +546,58 @@ async function deepAnalyzeRepo(octokit, repo) {
   const owner = repo.owner?.login || repo.full_name.split('/')[0];
   const repoName = repo.name;
   const isPublic = !repo.private;
+  const defaultBranch = repo.default_branch || 'main';
 
-  // ── 1. Parallell henting av grunnleggende data ────────────────
-  const [rootFiles, recentCommits] = await Promise.all([
-    fetchRootContents(octokit, owner, repoName),
+  // ── 1. Parallell henting: fullt filtre + commits ──────────────
+  const [repoTree, recentCommits] = await Promise.all([
+    fetchRepoTree(octokit, owner, repoName, defaultBranch),
     fetchRecentCommits(octokit, owner, repoName),
   ]);
 
-  // ── 2. Detekter om vi trenger package.json eller build.gradle ─
-  const hasPackageJson = rootFiles.some(f => f.toLowerCase() === 'package.json');
-  const hasBuildGradle = rootFiles.some(f =>
-    f.toLowerCase() === 'build.gradle' || f.toLowerCase() === 'build.gradle.kts'
-  );
+  // Utled rotnivå-filer fra treet (bakoverkompatibelt)
+  const rootFiles = repoTree
+    .filter(f => !f.path.includes('/') && f.type === 'blob')
+    .map(f => f.path);
 
-  // ── 3. Hent nøkkelfiler parallelt ────────────────────────────
-  const filePromises = [
-    fetchFileContent(octokit, owner, repoName, 'README.md').catch(() =>
-      fetchFileContent(octokit, owner, repoName, 'readme.md')
-    ),
+  // Filtre-metrikker
+  const fileTreeMetrics = repoTree.length > 0 ? analyzeFileTree(repoTree) : null;
+
+  // ── 2. Detekter nøkkelfiler fra treet ─────────────────────────
+  const treePaths = new Set(repoTree.filter(f => f.type === 'blob').map(f => f.path));
+  const hasPackageJson = treePaths.has('package.json');
+  const hasBuildGradle = treePaths.has('build.gradle') || treePaths.has('build.gradle.kts');
+
+  // ── 3. Hent nøkkelfiler + konfigurasjonsfiler parallelt ───────
+  const readmePath = treePaths.has('README.md') ? 'README.md'
+    : treePaths.has('readme.md') ? 'readme.md'
+    : treePaths.has('Readme.md') ? 'Readme.md' : null;
+
+  const [readmeContent, packageJsonContent, buildGradleContent, configFiles, workflowFiles] = await Promise.all([
+    readmePath
+      ? fetchFileContent(octokit, owner, repoName, readmePath)
+      : Promise.resolve(null),
     hasPackageJson
       ? fetchFileContent(octokit, owner, repoName, 'package.json')
       : Promise.resolve(null),
     hasBuildGradle
-      ? fetchFileContent(octokit, owner, repoName, 'build.gradle')
+      ? fetchFileContent(octokit, owner, repoName, treePaths.has('build.gradle') ? 'build.gradle' : 'build.gradle.kts')
       : Promise.resolve(null),
-  ];
-
-  const [readmeContent, packageJsonContent, buildGradleContent] = await Promise.all(filePromises);
-
-  // ── 4. Sjekk for CI/CD, tester og community-filer parallelt ──
-  const [hasWorkflows, hasTests, hasContributing, hasSecurity, hasCodeOfConduct] = await Promise.all([
-    pathExists(octokit, owner, repoName, '.github/workflows'),
-    detectTests(octokit, owner, repoName, rootFiles),
-    pathExists(octokit, owner, repoName, 'CONTRIBUTING.md').then(v => v || pathExists(octokit, owner, repoName, 'contributing.md')),
-    pathExists(octokit, owner, repoName, 'SECURITY.md').then(v => v || pathExists(octokit, owner, repoName, 'security.md')),
-    pathExists(octokit, owner, repoName, 'CODE_OF_CONDUCT.md'),
+    repoTree.length > 0
+      ? fetchConfigFiles(octokit, owner, repoName, repoTree)
+      : Promise.resolve({}),
+    repoTree.length > 0
+      ? fetchWorkflowFiles(octokit, owner, repoName, repoTree)
+      : Promise.resolve([]),
   ]);
+
+  // ── 4. Utled tilstedeværelse av community-filer fra treet ─────
+  const hasWorkflows = repoTree.some(f => f.path.startsWith('.github/workflows/') && f.type === 'blob');
+  const hasContributing = treePaths.has('CONTRIBUTING.md') || treePaths.has('contributing.md');
+  const hasSecurity = treePaths.has('SECURITY.md') || treePaths.has('security.md');
+  const hasCodeOfConduct = treePaths.has('CODE_OF_CONDUCT.md');
+
+  // Test-deteksjon via treet (ingen ekstra API-kall)
+  const hasTests = detectTestsFromTree(repoTree, packageJsonContent);
 
   // ── 5. Prosjekttype ───────────────────────────────────────────
   const projectType = detectProjectType({
@@ -360,7 +607,7 @@ async function deepAnalyzeRepo(octokit, repo) {
     repoName,
   });
 
-  // ── 6. Generer anbefalinger ───────────────────────────────────
+  // ── 6. Generer anbefalinger (regelbasert + dyp + kodestruktur)
   const baseAnalysis = analyzeRepository(repo);
   const deepRecs = generateDeepRecommendations({
     repo,
@@ -376,6 +623,9 @@ async function deepAnalyzeRepo(octokit, repo) {
     hasCodeOfConduct,
     recentCommits,
     projectType,
+    configFiles,
+    fileTreeMetrics,
+    workflowFiles,
   });
 
   // Slå sammen — fjern duplikater basert på tittel
@@ -383,10 +633,19 @@ async function deepAnalyzeRepo(octokit, repo) {
   const newRecs = deepRecs.filter(r => !existingTitles.has(r.title));
   const allRecommendations = [...baseAnalysis.recommendations, ...newRecs];
 
+  // Komprimert filtre-oversikt for AI-prompt (maks 60 stier)
+  const fileTreeSummary = repoTree.length > 0
+    ? repoTree
+        .filter(f => f.type === 'blob')
+        .slice(0, 60)
+        .map(f => f.path)
+    : null;
+
   return {
     repo: {
       ...baseAnalysis.repo,
       projectType,
+      defaultBranch,
     },
     deepInsights: {
       projectType,
@@ -404,12 +663,25 @@ async function deepAnalyzeRepo(octokit, repo) {
       packageJsonContent: packageJsonContent || null,
       buildGradleContent: buildGradleContent || null,
       readmeSummary: readmeContent ? readmeContent.slice(0, 500) : null,
+      // Nye felter fra dyp kodeanalyse
+      fileTreeMetrics,
+      fileTreeSummary,
+      configFiles: Object.keys(configFiles).length > 0 ? configFiles : null,
+      workflowFiles: workflowFiles.length > 0 ? workflowFiles : null,
+      hasDocker: treePaths.has('Dockerfile') || treePaths.has('docker-compose.yml') || treePaths.has('docker-compose.yaml'),
+      hasTypeScript: treePaths.has('tsconfig.json'),
+      hasLinter: treePaths.has('.eslintrc.json') || treePaths.has('.eslintrc.js') || treePaths.has('eslint.config.js') || treePaths.has('eslint.config.mjs'),
+      hasFormatter: treePaths.has('.prettierrc') || treePaths.has('.prettierrc.json') || treePaths.has('.editorconfig'),
+      hasDependabot: treePaths.has('.github/dependabot.yml'),
+      hasEnvExample: treePaths.has('.env.example'),
+      hasChangelog: treePaths.has('CHANGELOG.md') || treePaths.has('changelog.md'),
+      hasLockfile: treePaths.has('package-lock.json') || treePaths.has('yarn.lock') || treePaths.has('pnpm-lock.yaml'),
     },
     recommendations: allRecommendations,
   };
 }
 
-// ─── Test-deteksjon ───────────────────────────────────────────────────────────
+// ─── Test-deteksjon (API-basert – legacy) ─────────────────────────────────────
 
 async function detectTests(octokit, owner, repoName, rootFiles) {
   const rootSet = new Set(rootFiles.map(f => f.toLowerCase()));
@@ -441,6 +713,42 @@ async function detectTests(octokit, owner, repoName, rootFiles) {
   return false;
 }
 
+// ─── Test-deteksjon fra filtre (ingen ekstra API-kall) ────────────────────────
+
+/**
+ * Detekter tester fra det fullstendige filtreet — sparer mange API-kall.
+ * @param {Array<{path: string, type: string}>} tree — Fullt filtre
+ * @param {string|null} packageJsonContent — Innholdet av package.json
+ * @returns {boolean}
+ */
+function detectTestsFromTree(tree, packageJsonContent) {
+  const files = tree.filter(f => f.type === 'blob');
+
+  // Sjekk for testmapper
+  for (const dir of TEST_DIRS) {
+    if (files.some(f => f.path.startsWith(dir + '/') || f.path.includes('/' + dir + '/'))) {
+      return true;
+    }
+  }
+
+  // Sjekk for testfil-mønstre
+  if (files.some(f => TEST_FILE_PATTERNS.some(p => p.test(f.path)))) {
+    return true;
+  }
+
+  // Sjekk package.json for test-script
+  if (packageJsonContent) {
+    try {
+      const pkg = JSON.parse(packageJsonContent);
+      if (pkg.scripts?.test && !pkg.scripts.test.includes('no test')) return true;
+    } catch {
+      // ignore
+    }
+  }
+
+  return false;
+}
+
 // ─── Dype anbefalinger ────────────────────────────────────────────────────────
 
 function generateDeepRecommendations({
@@ -457,6 +765,9 @@ function generateDeepRecommendations({
   hasCodeOfConduct,
   recentCommits,
   projectType,
+  configFiles = {},
+  fileTreeMetrics = null,
+  workflowFiles = [],
 }) {
   const recommendations = [];
   const rootSet = new Set(rootFiles.map(f => f.toLowerCase()));
@@ -522,6 +833,117 @@ function generateDeepRecommendations({
       description: 'Opprett en security policy som forklarer hvordan sårbarheter skal rapporteres.',
       marketOpportunity: 'Sikkerhetsrutiner er forventet av seriøse brukere og organisasjoner.',
     });
+  }
+
+  // ── Kodestruktur-anbefalinger (basert på filtre) ──────────────
+  if (fileTreeMetrics) {
+    // Linting/formattering
+    const hasLinterConfig = Object.keys(configFiles).some(f =>
+      f.includes('eslint') || f.includes('.pylintrc') || f === 'tslint.json'
+    );
+    const hasFormatterConfig = Object.keys(configFiles).some(f =>
+      f.includes('prettier') || f === '.editorconfig'
+    );
+
+    if (!hasLinterConfig && fileTreeMetrics.byCategory.code > 5 && projectType !== 'docs') {
+      recommendations.push({
+        type: 'architecture',
+        priority: 'medium',
+        title: 'Konfigurer linter',
+        description: 'Prosjektet mangler en linter-konfigurasjon (ESLint, Pylint, etc.). Linting opprettholder konsistent kodekvalitet.',
+        marketOpportunity: 'Konsistent kodestil gjør det enklere for nye bidragsytere å komme i gang.',
+      });
+    }
+
+    if (!hasFormatterConfig && fileTreeMetrics.byCategory.code > 10 && projectType !== 'docs') {
+      recommendations.push({
+        type: 'architecture',
+        priority: 'low',
+        title: 'Legg til kodeformattering',
+        description: 'Prosjektet mangler Prettier eller EditorConfig. Automatisk formattering sparer tid og reduserer PR-støy.',
+        marketOpportunity: 'Automatisk formattering eliminerer formaterings-diskusjoner i code review.',
+      });
+    }
+
+    // Dependabot
+    const hasDependabotConfig = Object.keys(configFiles).includes('.github/dependabot.yml');
+    if (!hasDependabotConfig && fileTreeMetrics.byCategory.code > 0 && isPublic) {
+      recommendations.push({
+        type: 'security',
+        priority: 'low',
+        title: 'Aktiver Dependabot',
+        description: 'Konfigurer Dependabot for automatiske avhengighetsoppdateringer og sikkerhetsvarsler.',
+        marketOpportunity: 'Automatiske avhengighetsoppdateringer reduserer sikkerhetsrisiko og vedlikeholdsbyrde.',
+      });
+    }
+
+    // .env.example
+    const hasEnvExampleFile = Object.keys(configFiles).includes('.env.example');
+    if (!hasEnvExampleFile && (projectType === 'web-app' || projectType === 'api')) {
+      if (packageJsonContent) {
+        try {
+          const pkg = JSON.parse(packageJsonContent);
+          const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+          if (deps['dotenv'] || deps['@nestjs/config'] || deps['env-var']) {
+            recommendations.push({
+              type: 'documentation',
+              priority: 'medium',
+              title: 'Legg til .env.example',
+              description: 'Prosjektet bruker miljøvariabler, men mangler .env.example. Dokumenter påkrevde variabler for enklere oppsett.',
+              marketOpportunity: 'God onboarding-dokumentasjon er avgjørende for utviklertilfredshet.',
+            });
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    // Changelog
+    const hasChangelogDoc = rootSet.has('changelog.md') || rootSet.has('history.md');
+    if (!hasChangelogDoc && isPublic && projectType === 'library') {
+      recommendations.push({
+        type: 'documentation',
+        priority: 'medium',
+        title: 'Legg til CHANGELOG.md',
+        description: 'Biblioteker bør ha en endringslogg. Bruk Keep a Changelog-format eller automatiser med Changesets/conventional-changelog.',
+        marketOpportunity: 'Tydelig endringslogg gir brukere oversikt over nye funksjoner og breaking changes.',
+      });
+    }
+
+    // Docker
+    const hasDockerConfig = Object.keys(configFiles).includes('Dockerfile');
+    if (!hasDockerConfig && projectType === 'api') {
+      recommendations.push({
+        type: 'architecture',
+        priority: 'low',
+        title: 'Legg til Dockerfile',
+        description: 'API-et mangler Dockerfile. Containerisering forenkler deployment og sikrer konsistent kjøremiljø.',
+        marketOpportunity: 'Docker-støtte er forventet for moderne API-er og forenkler self-hosting.',
+      });
+    }
+
+    // Stor kodebase uten tilstrekkelige tester
+    if (hasTests && fileTreeMetrics.testFileCount < 3 && fileTreeMetrics.byCategory.code > 20) {
+      recommendations.push({
+        type: 'testing',
+        priority: 'medium',
+        title: 'Øk testdekningen',
+        description: `Kodebasen har ${fileTreeMetrics.byCategory.code} kodefiler, men kun ${fileTreeMetrics.testFileCount} testfil(er). Økt testdekning reduserer risiko for regresjoner.`,
+        marketOpportunity: 'Høy testdekning signaliserer kvalitet og tiltrekker bidragsytere.',
+      });
+    }
+
+    // Prosjekt med mange filer men uten kilde-mappe
+    if (fileTreeMetrics.sourceDirs.length === 0 && fileTreeMetrics.byCategory.code > 10 && fileTreeMetrics.maxDepth < 3) {
+      recommendations.push({
+        type: 'architecture',
+        priority: 'medium',
+        title: 'Organiser kildekode i mapper',
+        description: 'Kodefilene ligger spredt uten en tydelig mappestruktur (src/, lib/). God kodeorganisering letter navigasjon og vedlikehold.',
+        marketOpportunity: 'Ryddig prosjektstruktur er avgjørende for skalerbarhet og nye bidragsytere.',
+      });
+    }
   }
 
   // ── Prosjekttype-spesifikke anbefalinger ─────────────────────
@@ -641,7 +1063,10 @@ module.exports = {
   analyzeRepository,
   deepAnalyzeRepo,
   detectProjectType,
+  analyzeFileTree,
+  fetchRepoTree,
   fetchRootContents,
   fetchFileContent,
+  fetchConfigFiles,
   fetchRecentCommits,
 };

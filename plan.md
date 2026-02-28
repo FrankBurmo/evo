@@ -479,7 +479,7 @@ Opprettet av Product Orchestrator 🚀
 | 1 | Refaktorér `server/index.js` — trekk ut analyse, templates, issues | 1 | ✅ | Høy | Splittet til moduler: `github.js`, `templates.js`, `routes/` |
 | 2 | Copilot Models API i Express-backend | 2 | ✅ | Høy | `server/copilot-client.js` med prosjekttype-prompts |
 | 3 | AI-drevet repo-analyse i dashboard | 2 | ✅ | Høy | Integrert i `/api/repo/:owner/:name/deep` og `/api/scan/start` |
-| 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ❌ | Høy | Hent filstruktur, README, config |
+| 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ✅ | Høy | Git Trees API, filtre-metrikker, config-henting, kodestruktur-analyse |
 | 5 | Bulk-skanning fra UI (ScanControl + godkjenn/avvis) | 4 | ✅ | Medium | Ferdig — seleksjon + batch |
 | 6 | Prosjekttypegjenkjenning | 1 | ❌ | Medium | Android/web/API/library-deteksjon |
 | 7 | `proactive-scan.yml` GitHub Actions workflow | 5 | ✅ | Medium | Ferdig — cron + dispatch + artefakt |
