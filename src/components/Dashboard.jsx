@@ -3,6 +3,7 @@ import RepositoryCard from './RepositoryCard';
 import GuardrailsPanel from './GuardrailsPanel';
 import ProductDevelopmentPanel from './ProductDevelopmentPanel';
 import EngineeringVelocityPanel from './EngineeringVelocityPanel';
+import ScanControl from './ScanControl';
 
 function Dashboard({ token, onLogout }) {
   const [repos, setRepos] = useState([]);
@@ -169,6 +170,8 @@ function Dashboard({ token, onLogout }) {
           <div className="stat-label">Trenger oppmerksomhet</div>
         </div>
       </div>
+
+      <ScanControl token={token} />
 
       <GuardrailsPanel repos={repos} token={token} />
 

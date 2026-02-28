@@ -1357,6 +1357,381 @@ app.post('/api/engineering-velocity/:actionId', async (req, res) => {
   });
 });
 
+// ─── Proaktiv skanning ────────────────────────────────────────────────────────
+// In-memory scan state (single tenant — one scan at a time)
+const scanState = {
+  status: 'idle',       // idle | running | completed | error
+  startedAt: null,
+  completedAt: null,
+  progress: { current: 0, total: 0, currentRepo: null },
+  results: [],          // [{ repo, recommendations, deepInsights, issuesCreated }]
+  error: null,
+  options: {},
+};
+
+function resetScanState() {
+  scanState.status = 'idle';
+  scanState.startedAt = null;
+  scanState.completedAt = null;
+  scanState.progress = { current: 0, total: 0, currentRepo: null };
+  scanState.results = [];
+  scanState.error = null;
+  scanState.options = {};
+}
+
+/**
+ * POST /api/scan/start
+ * Body: { createIssues?: boolean, assignCopilot?: boolean, minPriority?: string, maxRepos?: number }
+ */
+app.post('/api/scan/start', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token && !process.env.GITHUB_TOKEN) {
+    return res.status(401).json({ error: 'GitHub token required' });
+  }
+
+  if (scanState.status === 'running') {
+    return res.status(409).json({ error: 'En skanning kjører allerede. Vent til den er ferdig.' });
+  }
+
+  const {
+    createIssues = false,
+    assignCopilot = false,
+    minPriority = 'medium',
+    maxRepos = 50,
+  } = req.body || {};
+
+  // Reset and start
+  resetScanState();
+  scanState.status = 'running';
+  scanState.startedAt = new Date().toISOString();
+  scanState.options = { createIssues, assignCopilot, minPriority, maxRepos };
+
+  // Respond immediately — scan runs in background
+  res.json({
+    status: 'started',
+    message: 'Proaktiv skanning startet.',
+    startedAt: scanState.startedAt,
+  });
+
+  // Run the scan asynchronously
+  const PRIORITY_RANK = { high: 3, medium: 2, low: 1, info: 0 };
+  const meetsMin = (p) => (PRIORITY_RANK[p] || 0) >= (PRIORITY_RANK[minPriority] || 0);
+
+  try {
+    const octokit = getOctokit(token);
+
+    // 1. Fetch all repos
+    const allRepos = await octokit.paginate(octokit.repos.listForAuthenticatedUser, {
+      sort: 'updated',
+      per_page: 100,
+      affiliation: 'owner',
+    });
+    const activeRepos = allRepos.filter(r => !r.archived).slice(0, maxRepos);
+
+    scanState.progress.total = activeRepos.length;
+
+    // 2. Deep-analyse each repo sequentially (to respect rate limits)
+    for (let i = 0; i < activeRepos.length; i++) {
+      const repo = activeRepos[i];
+      scanState.progress.current = i + 1;
+      scanState.progress.currentRepo = repo.full_name;
+
+      let analysis;
+      try {
+        analysis = await deepAnalyzeRepo(octokit, repo);
+      } catch (err) {
+        // Fallback to basic analysis if deep fails
+        analysis = analyzeRepository(repo);
+        analysis.deepInsights = null;
+      }
+
+      // Filter recommendations by minPriority
+      const filteredRecs = (analysis.recommendations || []).filter(r => meetsMin(r.priority));
+
+      const result = {
+        repo: analysis.repo,
+        deepInsights: analysis.deepInsights || null,
+        recommendations: filteredRecs,
+        issuesCreated: [],
+      };
+
+      // 3. Create issues if requested
+      if (createIssues && filteredRecs.length > 0) {
+        const [owner, repoName] = repo.full_name.split('/');
+
+        // Fetch existing evo-scan issues once per repo for dedup
+        let existingTitles = new Set();
+        try {
+          const existingIssues = await octokit.paginate(octokit.issues.listForRepo, {
+            owner,
+            repo: repoName,
+            state: 'open',
+            labels: 'evo-scan',
+            per_page: 100,
+          });
+          existingTitles = new Set(existingIssues.map(i => i.title.toLowerCase().trim()));
+        } catch {
+          // ignore — dedup won't work but we still create issues
+        }
+
+        for (const rec of filteredRecs) {
+          const issueTitle = `[Evo] ${rec.title}`;
+          if (existingTitles.has(issueTitle.toLowerCase().trim())) {
+            result.issuesCreated.push({ title: rec.title, status: 'skipped', reason: 'duplicate' });
+            continue;
+          }
+
+          try {
+            const priorityEmoji = { high: '🔴', medium: '🟡', low: '🔵' }[rec.priority] || '⚪';
+            const body = `## ${priorityEmoji} ${rec.title}
+
+> Automatisk opprettet av **[Evo](https://github.com/FrankBurmo/product-orchestrator)** — proaktiv skanning.
+
+---
+
+### 📋 Beskrivelse
+
+${rec.description}
+
+${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}\n` : ''}
+
+---
+
+### ✅ Akseptansekriterier
+
+- [ ] Problemet beskrevet over er løst
+- [ ] Endringen er testet
+- [ ] En pull request er opprettet med løsningen
+
+---
+
+*Opprettet av Evo proaktiv skanning • Prioritet: \`${rec.priority}\` • Type: \`${rec.type || 'generell'}\`*
+`;
+
+            const labels = ['evo-scan'];
+            if (rec.priority === 'high') labels.push('priority: high');
+            if (rec.priority === 'medium') labels.push('priority: medium');
+            if (rec.type) labels.push(rec.type);
+
+            let issue;
+            try {
+              const { data } = await octokit.issues.create({
+                owner, repo: repoName, title: issueTitle, body, labels,
+              });
+              issue = data;
+            } catch (labelErr) {
+              // Retry without extra labels
+              if (labelErr.status === 422) {
+                const { data } = await octokit.issues.create({
+                  owner, repo: repoName, title: issueTitle, body, labels: ['evo-scan'],
+                });
+                issue = data;
+              } else {
+                throw labelErr;
+              }
+            }
+
+            let copilotAssigned = false;
+            if (assignCopilot && issue) {
+              try {
+                const issueQuery = await octokit.graphql(
+                  `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){issue(number:$number){id}}}`,
+                  { owner, repo: repoName, number: issue.number }
+                );
+                const issueNodeId = issueQuery.repository.issue.id;
+                const actorsQuery = await octokit.graphql(
+                  `query($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){suggestedActors(first:100,capabilities:CAN_BE_ASSIGNED){nodes{...on User{id login __typename}...on Bot{id login __typename}}}}}`,
+                  { owner, repo: repoName }
+                );
+                const bot = actorsQuery.repository.suggestedActors.nodes.find(
+                  a => a.login === 'copilot-swe-agent' || a.login === 'min-kode-agent'
+                );
+                if (bot) {
+                  await octokit.graphql(
+                    `mutation($input:ReplaceActorsForAssignableInput!){replaceActorsForAssignable(input:$input){__typename}}`,
+                    { input: { assignableId: issueNodeId, actorIds: [bot.id] } }
+                  );
+                  copilotAssigned = true;
+                }
+              } catch {
+                // non-critical
+              }
+            }
+
+            result.issuesCreated.push({
+              title: rec.title,
+              status: 'created',
+              issueUrl: issue.html_url,
+              issueNumber: issue.number,
+              copilotAssigned,
+            });
+          } catch (err) {
+            result.issuesCreated.push({ title: rec.title, status: 'error', error: err.message });
+          }
+        }
+      }
+
+      scanState.results.push(result);
+    }
+
+    scanState.status = 'completed';
+    scanState.completedAt = new Date().toISOString();
+    scanState.progress.currentRepo = null;
+    console.log(`✓ Proaktiv skanning fullført: ${scanState.results.length} repos analysert.`);
+  } catch (err) {
+    scanState.status = 'error';
+    scanState.error = err.message;
+    scanState.completedAt = new Date().toISOString();
+    console.error('Proaktiv skanning feilet:', err.message);
+  }
+});
+
+/**
+ * GET /api/scan/status
+ */
+app.get('/api/scan/status', (req, res) => {
+  res.json({
+    status: scanState.status,
+    startedAt: scanState.startedAt,
+    completedAt: scanState.completedAt,
+    progress: scanState.progress,
+    error: scanState.error,
+    options: scanState.options,
+    resultCount: scanState.results.length,
+  });
+});
+
+/**
+ * GET /api/scan/results
+ */
+app.get('/api/scan/results', (req, res) => {
+  const { minPriority } = req.query;
+  const PRIORITY_RANK = { high: 3, medium: 2, low: 1, info: 0 };
+
+  let results = scanState.results;
+
+  // Optional client-side re-filter
+  if (minPriority) {
+    const min = PRIORITY_RANK[minPriority] || 0;
+    results = results.map(r => ({
+      ...r,
+      recommendations: r.recommendations.filter(rec => (PRIORITY_RANK[rec.priority] || 0) >= min),
+    }));
+  }
+
+  const totalRecs = results.reduce((sum, r) => sum + r.recommendations.length, 0);
+  const totalIssues = results.reduce((sum, r) => sum + r.issuesCreated.length, 0);
+  const issuesCreated = results.reduce(
+    (sum, r) => sum + r.issuesCreated.filter(i => i.status === 'created').length, 0
+  );
+
+  res.json({
+    status: scanState.status,
+    startedAt: scanState.startedAt,
+    completedAt: scanState.completedAt,
+    summary: {
+      reposScanned: results.length,
+      totalRecommendations: totalRecs,
+      totalIssuesAttempted: totalIssues,
+      issuesCreated,
+    },
+    results,
+  });
+});
+
+/**
+ * POST /api/scan/create-issues
+ * Batch-opprett issues for alle anbefalinger fra siste skanning.
+ * Body: { assignCopilot?: boolean }
+ */
+app.post('/api/scan/create-issues', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token && !process.env.GITHUB_TOKEN) {
+    return res.status(401).json({ error: 'GitHub token required' });
+  }
+
+  if (scanState.status !== 'completed' || scanState.results.length === 0) {
+    return res.status(400).json({ error: 'Ingen skanningsresultater tilgjengelig. Kjør en skanning først.' });
+  }
+
+  const { assignCopilot = false } = req.body || {};
+  const octokit = getOctokit(token);
+  const created = [];
+  const skipped = [];
+  const errors = [];
+
+  for (const result of scanState.results) {
+    if (result.recommendations.length === 0) continue;
+    if (result.issuesCreated.some(i => i.status === 'created')) continue; // already created in this scan
+
+    const [owner, repoName] = result.repo.fullName.split('/');
+
+    // Dedup check
+    let existingTitles = new Set();
+    try {
+      const existing = await octokit.paginate(octokit.issues.listForRepo, {
+        owner, repo: repoName, state: 'open', labels: 'evo-scan', per_page: 100,
+      });
+      existingTitles = new Set(existing.map(i => i.title.toLowerCase().trim()));
+    } catch { /* ignore */ }
+
+    for (const rec of result.recommendations) {
+      const issueTitle = `[Evo] ${rec.title}`;
+      if (existingTitles.has(issueTitle.toLowerCase().trim())) {
+        skipped.push({ repo: result.repo.fullName, title: rec.title, reason: 'duplicate' });
+        continue;
+      }
+
+      try {
+        const priorityEmoji = { high: '🔴', medium: '🟡', low: '🔵' }[rec.priority] || '⚪';
+        const body = `## ${priorityEmoji} ${rec.title}\n\n> Automatisk opprettet av **Evo** — batch issue-opprettelse.\n\n---\n\n### 📋 Beskrivelse\n\n${rec.description}\n\n${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}\n\n` : ''}---\n\n### ✅ Akseptansekriterier\n\n- [ ] Problemet er løst\n- [ ] Endringen er testet\n- [ ] PR er opprettet\n\n---\n\n*Opprettet av Evo • Prioritet: \`${rec.priority}\` • Type: \`${rec.type || 'generell'}\`*`;
+
+        const labels = ['evo-scan'];
+        if (rec.priority === 'high') labels.push('priority: high');
+        if (rec.priority === 'medium') labels.push('priority: medium');
+
+        let issue;
+        try {
+          const { data } = await octokit.issues.create({ owner, repo: repoName, title: issueTitle, body, labels });
+          issue = data;
+        } catch (labelErr) {
+          if (labelErr.status === 422) {
+            const { data } = await octokit.issues.create({ owner, repo: repoName, title: issueTitle, body, labels: ['evo-scan'] });
+            issue = data;
+          } else throw labelErr;
+        }
+
+        let copilotAssigned = false;
+        if (assignCopilot && issue) {
+          try {
+            const iq = await octokit.graphql(`query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){issue(number:$n){id}}}`, { o: owner, r: repoName, n: issue.number });
+            const aq = await octokit.graphql(`query($o:String!,$r:String!){repository(owner:$o,name:$r){suggestedActors(first:100,capabilities:CAN_BE_ASSIGNED){nodes{...on User{id login}...on Bot{id login}}}}}`, { o: owner, r: repoName });
+            const bot = aq.repository.suggestedActors.nodes.find(a => a.login === 'copilot-swe-agent' || a.login === 'min-kode-agent');
+            if (bot) {
+              await octokit.graphql(`mutation($i:ReplaceActorsForAssignableInput!){replaceActorsForAssignable(input:$i){__typename}}`, { i: { assignableId: iq.repository.issue.id, actorIds: [bot.id] } });
+              copilotAssigned = true;
+            }
+          } catch { /* non-critical */ }
+        }
+
+        created.push({ repo: result.repo.fullName, title: rec.title, issueUrl: issue.html_url, copilotAssigned });
+        result.issuesCreated.push({ title: rec.title, status: 'created', issueUrl: issue.html_url, issueNumber: issue.number, copilotAssigned });
+      } catch (err) {
+        errors.push({ repo: result.repo.fullName, title: rec.title, error: err.message });
+        result.issuesCreated.push({ title: rec.title, status: 'error', error: err.message });
+      }
+    }
+  }
+
+  res.json({
+    success: true,
+    summary: { created: created.length, skipped: skipped.length, errors: errors.length },
+    created,
+    skipped,
+    errors,
+  });
+});
+
 app.listen(port, () => {
   console.log(`Product Orchestrator API running on port ${port}`);
   console.log(`Visit http://localhost:${port}/api/health to check status`);

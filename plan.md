@@ -213,27 +213,26 @@ jobs:
   - **Generelt:** Testing, CI/CD, avhengighetsoppdatering, kodeorganisering
 - [ ] Rate limiting for Models API-kall (respekter kvote fra Copilot-abonnement)
 
-### Fase 3: Automatisk Issue-opprettelse — ✅ ~70% ferdig
+### Fase 3: Automatisk Issue-opprettelse — ✅ Ferdig
 **Mål:** Opprette GitHub Issues i repos der forbedringer er hensiktsmessige
 
 **Oppgaver:**
-- [ ] Nytt API-endepunkt `POST /api/scan/start` — starter proaktiv skanning
-- [ ] Nytt API-endepunkt `GET /api/scan/status` — sjekk status på pågående skanning
-- [ ] Nytt API-endepunkt `GET /api/scan/results` — hent resultater fra siste skanning
+- [x] Nytt API-endepunkt `POST /api/scan/start` — starter proaktiv skanning med dyp analyse
+- [x] Nytt API-endepunkt `GET /api/scan/status` — sjekk status på pågående skanning
+- [x] Nytt API-endepunkt `GET /api/scan/results` — hent resultater fra siste skanning
+- [x] Nytt API-endepunkt `POST /api/scan/create-issues` — batch issue-opprettelse fra skanningsresultater
 - [x] Issue-opprettelse via `POST /api/create-agent-issue` — med Copilot-tildeling
 - [x] Issue-opprettelse for 11 analysekategorier via `/api/guardrails/*`, `/api/product-dev/*`, `/api/engineering-velocity/*`
 - [x] CLI: `--create-issues` og `--dry-run` med full issue-opprettelse
 - [x] Issue-mal med tydelig tittel, detaljert beskrivelse, labels, prioritet
 - [x] Dedup-logikk i CLI (`issues.js` — sjekker eksisterende issues med `evo-scan`-label)
 - [x] Batch-modus i CLI (skanner alle repos og oppretter issues automatisk)
-- [ ] Batch-modus i web-UI (opprett alle foreslåtte issues med én knapp)
+- [x] Batch-modus i web-UI (`ScanControl.jsx` — opprett alle foreslåtte issues med én knapp)
 
-### Fase 4: Frontend – Scan-orkestrering — ⏳ ~40% ferdig (alternativ retning tatt)
+### Fase 4: Frontend – Scan-orkestrering — ⏳ ~65% ferdig
 **Mål:** Utvide dashboardet med UI for å starte og overvåke skanninger
 
-> **Merk:** Utviklingen tok en annen retning enn planlagt. I stedet for én «Start scan»-knapp
-> med bulk-resultater, ble det bygget tre rike analysepaneler med per-repo/per-kategori triggere.
-> Bulk-skanning bør fortsatt implementeres.
+> **Merk:** Bulk-skanning er nå implementert via `ScanControl.jsx`.
 
 **Ferdige oppgaver:**
 - [x] `GuardrailsPanel.jsx` — arkitekturanalyse per repo med av/på-toggles
@@ -243,15 +242,16 @@ jobs:
 - [x] `Dashboard.jsx` oppdatert med paneler, filtrering og statistikk
 
 **Gjenstående oppgaver:**
-- [ ] Ny komponent `ScanControl.jsx` — start/stopp proaktiv bulk-skanning
+- [x] Ny komponent `ScanControl.jsx` — start/stopp proaktiv bulk-skanning
   - Knapp "Start proaktiv skanning"
   - Fremdriftsindikator per repo
   - Vise resultater fortløpende
-- [ ] Ny komponent `ScanResults.jsx` — vise samlede skanningsresultater
-  - Liste med foreslåtte issues per repo
-  - Mulighet til å godkjenne/avvise individuelle forslag
-  - "Opprett alle issues"-knapp
-  - "Opprett issue og tilordne til @copilot"-knapp
+  - Batch issue-opprettelse med Copilot-tildeling
+- [ ] Ny komponent `ScanResults.jsx` — vise samlede skanningsresultater (valgfritt, integrert i ScanControl nå)
+  - ~~Liste med foreslåtte issues per repo~~ ✅ Integrert i ScanControl
+  - [ ] Mulighet til å godkjenne/avvise individuelle forslag
+  - ~~"Opprett alle issues"-knapp~~ ✅ Integrert i ScanControl
+  - ~~"Opprett issue og tilordne til @copilot"-knapp~~ ✅ Integrert i ScanControl
 
 ### Fase 5: GitHub Actions – Schedulert kjøring — ⏳ ~15% ferdig
 **Mål:** Automatisk daglig/ukentlig skanning uten manuell innsats
@@ -338,7 +338,8 @@ evo/
 │       ├── AgentModal.jsx          # Modal for Copilot issue-opprettelse
 │       ├── GuardrailsPanel.jsx     # Arkitekturanalyse-trigger
 │       ├── ProductDevelopmentPanel.jsx  # 5 produktutviklings-analyser
-│       └── EngineeringVelocityPanel.jsx # 5 leveransekvalitet-analyser
+│       ├── EngineeringVelocityPanel.jsx # 5 leveransekvalitet-analyser
+│       └── ScanControl.jsx         # Proaktiv bulk-skanning med fremdrift og batch-issues
 ├── packages/
 │   └── cli/
 │       ├── package.json            # evo-scan npm-pakke (v0.1.0)
