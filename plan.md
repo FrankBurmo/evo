@@ -53,7 +53,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 
 ### Hva mangler
 
-- **Ingen AI-analyse i web-dashboard** — Copilot Models API brukes kun i CLI, ikke i Express-backend
+- **~~Ingen AI-analyse i web-dashboard~~** — ✅ **Løst i fase 2**: `server/copilot-client.js` med prosjekttypespesifikke prompts, rate limiting og integrering i Express-endepunkter
 - **~~Ingen dyp kodeanalyse~~** — ✅ **Løst i fase 1**: `server/analyzer.js` henter filstruktur, kildekode, commits og kategoriserer prosjekttype
 - **Ingen proaktiv bulk-skanning fra UI** — ingen «Start skanning»-knapp, fremdriftsvising eller resultatoversikt
 - **Ingen schedulert kjøring** — mangler `proactive-scan.yml` workflow og `scan-config.json`
@@ -199,19 +199,24 @@ jobs:
 - [x] Hent eksisterende issues for å unngå duplikater (implementert i CLI: `issues.js`)
 - [x] Kategoriser repos: `web-app` | `android-app` | `library` | `api` | `docs` | `other`
 
-### Fase 2: KI-drevet analyse med GitHub Copilot Models API — ⏳ ~50% ferdig
+### Fase 2: KI-drevet analyse med GitHub Copilot Models API — ✅ Ferdig
 **Mål:** Bruke Copilot Models API til intelligent vurdering av hvert repo
 
 **Oppgaver:**
 - [x] Copilot Models API-klient med strukturert JSON-output (CLI: `packages/cli/src/copilot.js`)
 - [x] Fallback hvis Models API ikke er tilgjengelig — bruker regelbasert analyse (CLI: `scanner.js`)
-- [ ] Ny modul `server/copilot-client.js` — samme funksjonalitet som CLI, men for Express-backend
-- [ ] Definer analyse-prompts per prosjekttype:
+- [x] Ny modul `server/copilot-client.js` — samme funksjonalitet som CLI, men for Express-backend
+- [x] Definer analyse-prompts per prosjekttype:
   - **Nettsted:** SEO, ytelse, tilgjengelighet, UX, PWA-muligheter, responsive design
   - **Android-app:** Material Design, Kotlin-migrasjon, Jetpack Compose, Play Store-optimalisering
   - **API/Backend:** Sikkerhet, dokumentasjon (OpenAPI/Swagger), feilhåndtering, logging
+  - **Bibliotek:** API-design, bundling, versjonering, DX
+  - **Dokumentasjon:** Innhold, søk, navigasjon, tilgjengelighet
   - **Generelt:** Testing, CI/CD, avhengighetsoppdatering, kodeorganisering
-- [ ] Rate limiting for Models API-kall (respekter kvote fra Copilot-abonnement)
+- [x] Rate limiting for Models API-kall (token-bucket med konfigurerbar kvote)
+- [x] KI-analyse integrert i Express-backend (`/api/repo/:owner/:name/deep` og `/api/scan/start`)
+- [x] Dedikert KI-analyse-endepunkt `POST /api/repo/:owner/:name/ai-analyze`
+- [x] Retry-logikk ved forbigående feil (429, 5xx)
 
 ### Fase 3: Automatisk Issue-opprettelse — ✅ Ferdig
 **Mål:** Opprette GitHub Issues i repos der forbedringer er hensiktsmessige
@@ -327,7 +332,8 @@ SCAN_EXCLUDE_REPOS=repo1,repo2        # Repos som skal ekskluderes
 evo/
 ├── server/
 │   ├── index.js                    # API-server — all backend-logikk (1364 linjer)
-│   └── analyzer.js                 # Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
+│   ├── analyzer.js                 # Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
+│   └── copilot-client.js           # Copilot Models API-klient — KI-analyse med prosjekttype-prompts
 ├── src/
 │   ├── App.jsx                     # Autentiseringsflyt
 │   ├── main.jsx                    # React entry point
@@ -367,12 +373,6 @@ evo/
 
 **Planlagte, men ennå ikke opprettede filer:**
 ```
-├── server/
-│   ├── analyzer.js                 # Utvidet analysemotor (refaktorert ut av index.js)
-│   └── copilot-client.js           # Copilot Models API for Express-backend
-├── src/components/
-│   ├── ScanControl.jsx             # Bulk-skanning UI
-│   └── ScanResults.jsx             # Samlet resultatvisning
 ├── .github/workflows/
 │   └── proactive-scan.yml          # Schedulert skanning
 └── scan-config.json                # Skanningskonfigurasjon
@@ -389,6 +389,7 @@ evo/
 | ✅ | `POST` | `/api/guardrails/architecture-analysis` | Arkitekturanalyse-issue |
 | ✅ | `POST` | `/api/product-dev/:actionId` | 5 produktutviklings-issues |
 | ✅ | `POST` | `/api/engineering-velocity/:actionId` | 5 leveransekvalitet-issues |
+| ✅ | `POST` | `/api/repo/:owner/:name/ai-analyze` | Dedikert KI-analyse med Copilot Models API |
 | ❌ | `POST` | `/api/scan/start` | Start proaktiv skanning av alle repos |
 | ❌ | `GET` | `/api/scan/status` | Hent status for pågående skanning |
 | ❌ | `GET` | `/api/scan/results` | Hent resultater fra siste skanning |
@@ -463,8 +464,8 @@ Opprettet av Product Orchestrator 🚀
 | # | Oppgave | Fase | Status | Prioritet | Neste steg |
 |---|---------|------|--------|-----------|------------|
 | 1 | Refaktorér `server/index.js` — trekk ut analyse, templates, issues | 1 | ❌ | Høy | Splitt 1461 linjer til moduler |
-| 2 | Copilot Models API i Express-backend | 2 | ❌ | Høy | Port `packages/cli/src/copilot.js` til server |
-| 3 | AI-drevet repo-analyse i dashboard | 2 | ❌ | Høy | Kombiner regelbasert + AI i `/api/repos` |
+| 2 | Copilot Models API i Express-backend | 2 | ✅ | Høy | `server/copilot-client.js` med prosjekttype-prompts |
+| 3 | AI-drevet repo-analyse i dashboard | 2 | ✅ | Høy | Integrert i `/api/repo/:owner/:name/deep` og `/api/scan/start` |
 | 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ❌ | Høy | Hent filstruktur, README, config |
 | 5 | Bulk-skanning fra UI (ScanControl + ScanResults) | 4 | ❌ | Medium | Bygge scan-endepunkter + frontend |
 | 6 | Prosjekttypegjenkjenning | 1 | ❌ | Medium | Android/web/API/library-deteksjon |

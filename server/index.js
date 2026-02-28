@@ -4,6 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const { Octokit } = require('@octokit/rest');
 const { analyzeRepository, deepAnalyzeRepo } = require('./analyzer');
+const { analyzeWithAI } = require('./copilot-client');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -106,6 +107,7 @@ app.get('/api/repo/:owner/:name/deep', async (req, res) => {
   try {
     const { owner, name } = req.params;
     const token = req.headers.authorization?.replace('Bearer ', '');
+    const useAI = req.query.ai !== 'false'; // KI er på som standard, ?ai=false for å slå av
 
     if (!token && !process.env.GITHUB_TOKEN) {
       return res.status(401).json({ error: 'GitHub token required' });
@@ -114,10 +116,87 @@ app.get('/api/repo/:owner/:name/deep', async (req, res) => {
     const octokit = getOctokit(token);
     const { data: repo } = await octokit.repos.get({ owner, repo: name });
     const analysis = await deepAnalyzeRepo(octokit, repo);
+
+    // KI-analyse: kombiner regelbasert + AI-drevet
+    if (useAI && (token || process.env.GITHUB_TOKEN)) {
+      try {
+        const existingTitles = (analysis.recommendations || []).map(r => r.title);
+        const aiResult = await analyzeWithAI({
+          token: token || process.env.GITHUB_TOKEN,
+          repo: analysis.repo,
+          deepInsights: analysis.deepInsights,
+          existingRecs: existingTitles,
+        });
+
+        // Slå sammen AI-anbefalinger med regelbaserte
+        const existingSet = new Set(existingTitles.map(t => t.toLowerCase()));
+        const newAIRecs = (aiResult.recommendations || []).filter(
+          r => !existingSet.has(r.title.toLowerCase())
+        );
+        analysis.recommendations = [...analysis.recommendations, ...newAIRecs];
+        analysis.aiSummary = aiResult.summary;
+        analysis.aiAnalyzed = true;
+      } catch (aiError) {
+        console.warn('KI-analyse feilet, bruker kun regelbasert analyse:', aiError.message);
+        analysis.aiAnalyzed = false;
+        analysis.aiError = aiError.message;
+      }
+    } else {
+      analysis.aiAnalyzed = false;
+    }
+
     res.json(analysis);
   } catch (error) {
     console.error('Error in deep analysis:', error);
     res.status(500).json({ error: 'Failed to deep-analyse repository', message: error.message });
+  }
+});
+
+/**
+ * POST /api/repo/:owner/:name/ai-analyze
+ * Dedikert KI-analyse-endepunkt. Kjører dyp analyse etterfulgt av Copilot Models API.
+ * Body: { model?: string }
+ */
+app.post('/api/repo/:owner/:name/ai-analyze', async (req, res) => {
+  try {
+    const { owner, name } = req.params;
+    const token = req.headers.authorization?.replace('Bearer ', '');
+
+    if (!token && !process.env.GITHUB_TOKEN) {
+      return res.status(401).json({ error: 'GitHub token required' });
+    }
+
+    const { model } = req.body || {};
+    const octokit = getOctokit(token);
+    const { data: repo } = await octokit.repos.get({ owner, repo: name });
+    const analysis = await deepAnalyzeRepo(octokit, repo);
+
+    const existingTitles = (analysis.recommendations || []).map(r => r.title);
+    const aiResult = await analyzeWithAI({
+      token: token || process.env.GITHUB_TOKEN,
+      model,
+      repo: analysis.repo,
+      deepInsights: analysis.deepInsights,
+      existingRecs: existingTitles,
+    });
+
+    const existingSet = new Set(existingTitles.map(t => t.toLowerCase()));
+    const newAIRecs = (aiResult.recommendations || []).filter(
+      r => !existingSet.has(r.title.toLowerCase())
+    );
+
+    res.json({
+      repo: analysis.repo,
+      deepInsights: analysis.deepInsights,
+      aiSummary: aiResult.summary,
+      projectType: aiResult.projectType,
+      recommendations: [...analysis.recommendations, ...newAIRecs],
+      ruleBasedCount: analysis.recommendations.length,
+      aiCount: newAIRecs.length,
+    });
+  } catch (error) {
+    console.error('Error in AI analysis:', error);
+    res.status(500).json({ error: 'KI-analyse feilet', message: error.message });
   }
 });
 
@@ -1398,13 +1477,15 @@ app.post('/api/scan/start', async (req, res) => {
     assignCopilot = false,
     minPriority = 'medium',
     maxRepos = 50,
+    useAI = true,
+    model,
   } = req.body || {};
 
   // Reset and start
   resetScanState();
   scanState.status = 'running';
   scanState.startedAt = new Date().toISOString();
-  scanState.options = { createIssues, assignCopilot, minPriority, maxRepos };
+  scanState.options = { createIssues, assignCopilot, minPriority, maxRepos, useAI };
 
   // Respond immediately — scan runs in background
   res.json({
@@ -1443,6 +1524,31 @@ app.post('/api/scan/start', async (req, res) => {
         // Fallback to basic analysis if deep fails
         analysis = analyzeRepository(repo);
         analysis.deepInsights = null;
+      }
+
+      // KI-analyse (om aktivert)
+      if (useAI && (token || process.env.GITHUB_TOKEN)) {
+        try {
+          const existingTitles = (analysis.recommendations || []).map(r => r.title);
+          const aiResult = await analyzeWithAI({
+            token: token || process.env.GITHUB_TOKEN,
+            model,
+            repo: analysis.repo || { fullName: repo.full_name, language: repo.language, description: repo.description, visibility: repo.private ? 'private' : 'public', stars: repo.stargazers_count, forks: repo.forks_count, openIssues: repo.open_issues_count, updatedAt: repo.updated_at, license: repo.license?.spdx_id },
+            deepInsights: analysis.deepInsights,
+            existingRecs: existingTitles,
+          });
+
+          const existingSet = new Set(existingTitles.map(t => t.toLowerCase()));
+          const newAIRecs = (aiResult.recommendations || []).filter(
+            r => !existingSet.has(r.title.toLowerCase())
+          );
+          analysis.recommendations = [...(analysis.recommendations || []), ...newAIRecs];
+          analysis.aiSummary = aiResult.summary;
+          analysis.aiAnalyzed = true;
+        } catch (aiErr) {
+          console.warn(`KI-analyse feilet for ${repo.full_name}:`, aiErr.message);
+          analysis.aiAnalyzed = false;
+        }
       }
 
       // Filter recommendations by minPriority

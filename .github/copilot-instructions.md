@@ -29,6 +29,8 @@ React + Vite (frontend)  ←→  Express (backend, port 3001)  ←→  GitHub RE
 
 ```
 server/index.js          – Express API-server (all backend-logikk samlet her foreløpig)
+server/analyzer.js       – Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
+server/copilot-client.js – Copilot Models API-klient — KI-analyse med prosjekttype-prompts og rate limiting
 src/App.jsx              – Root React-komponent, autentiseringsflyt
 src/components/          – React-komponenter (Dashboard, panels, cards, modals)
 src/index.css            – Global CSS
@@ -89,10 +91,20 @@ const response = await fetch('https://api.githubcopilot.com/inference/chat/compl
 ```
 
 ### Repo-analyse
-- `analyzeRepository(repo)` i `server/index.js` utfører regelbasert analyse
-- Returnerer `{ recommendations, insights, score, priority }` per repo
-- Prioriteter: `'critical'`, `'high'`, `'medium'`, `'low'`
-- Anbefalingstyper: `'documentation'`, `'activity'`, `'community'`, `'visibility'`, `'maintenance'`
+- `analyzeRepository(repo)` i `server/analyzer.js` utfører rask regelbasert analyse (kun metadata)
+- `deepAnalyzeRepo(octokit, repo)` i `server/analyzer.js` utfører dyp analyse med GitHub API-kall
+- `analyzeWithAI(params)` i `server/copilot-client.js` utfører KI-drevet analyse via Copilot Models API
+- Returnerer `{ recommendations, deepInsights, aiSummary }` per repo
+- Prioriteter: `'high'`, `'medium'`, `'low'`
+- Anbefalingstyper: `'documentation'`, `'activity'`, `'community'`, `'visibility'`, `'maintenance'`, `'testing'`, `'ci'`, `'security'`, `'performance'`, `'architecture'`, `'ux'`, `'seo'`, `'accessibility'`
+- KI-anbefalinger markeres med `source: 'ai'` for å skille fra regelbaserte
+
+### KI-analyse (server/copilot-client.js)
+- Bruker GitHub Copilot Models API med prosjekttypespesifikke prompts
+- Støtter prosjekttyper: `web-app`, `android-app`, `api`, `library`, `docs`, `other`
+- Token-bucket rate limiting (standard: 10 req/min, konfigurerbar via `COPILOT_RATE_LIMIT`)
+- Retry-logikk ved 429 og 5xx-feil
+- Strukturert JSON-output med robust parsing og validering
 
 ### Issue-opprettelse
 - Bruk `octokit.issues.create()` med label `['product-orchestrator', 'enhancement']`
@@ -102,11 +114,11 @@ const response = await fetch('https://api.githubcopilot.com/inference/chat/compl
 
 ## Planlagte utvidelser (se plan.md for detaljer)
 
-- **AI-drevet kodeanalyse:** Hente og analysere faktisk kildekode, ikke bare repo-metadata
-- **Automatisk issue-opprettelse:** Backend oppretter GitHub Issues med AI-forslag direkte
+- **~~AI-drevet kodeanalyse~~** ✅ Ferdig — `server/copilot-client.js` + `server/analyzer.js`
+- **~~Automatisk issue-opprettelse~~** ✅ Ferdig — `POST /api/create-agent-issue` + scan-endepunkter
 - **Schedulert skanning:** GitHub Actions cron-workflow for daglig/ukentlig analyse
-- **Copilot Coding Agent-integrasjon:** Tildele opprettede issues til `@copilot`
-- **Android-spesifikk analyse:** Gjenkjenne Android-prosjekter og gi tilpassede anbefalinger
+- **~~Copilot Coding Agent-integrasjon~~** ✅ Ferdig — GraphQL-basert tildeling
+- **~~Android-spesifikk analyse~~** ✅ Ferdig — Prosjekttypegjenkjenning med tilpassede prompts
 
 ---
 
@@ -116,6 +128,8 @@ const response = await fetch('https://api.githubcopilot.com/inference/chat/compl
 |----------|-------------|
 | `GITHUB_TOKEN` | GitHub PAT (fallback hvis token ikke sendes fra frontend) |
 | `PORT` | Backend-port (standard: `3001`) |
+| `COPILOT_MODEL` | AI-modell for KI-analyse (standard: `openai/gpt-4.1`) |
+| `COPILOT_RATE_LIMIT` | Maks Copilot API-kall per minutt (standard: `10`) |
 
 Token kan også legges inn i frontend-UI og lagres i `localStorage`.
 
