@@ -11,7 +11,21 @@ const scanRoutes = require('./routes/scan');
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : ['http://localhost:3000', 'http://localhost:3001'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. curl, Postman, same-origin server requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 // Rate limiting
