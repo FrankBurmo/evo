@@ -59,16 +59,16 @@ function Dashboard({ token, onLogout }) {
       ));
     } else if (filter === 'active') {
       // Filter repos with recent activity
-      setFilteredRepos(repos.filter(repo => repo.insights.recentActivity));
+      setFilteredRepos(repos.filter(repo => repo.insights?.recentActivity));
     } else if (filter === 'inactive') {
       // Filter repos without recent activity
-      setFilteredRepos(repos.filter(repo => !repo.insights.recentActivity));
+      setFilteredRepos(repos.filter(repo => !repo.insights?.recentActivity));
     }
   };
 
   const calculateStats = () => {
     const totalRepos = repos.length;
-    const activeRepos = repos.filter(r => r.insights.recentActivity).length;
+    const activeRepos = repos.filter(r => r.insights?.recentActivity).length;
     const totalStars = repos.reduce((sum, r) => sum + (r.repo.stars || 0), 0);
     const needsAttention = repos.filter(r => 
       r.recommendations.some(rec => rec.priority === 'high')

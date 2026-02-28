@@ -118,6 +118,11 @@
   font-size: 0.82rem;
 }
 
+.scan-option-row select option {
+  background: #13131f;
+  color: #e8e8f0;
+}
+
 /* Start button */
 .scan-start-btn {
   width: 100%;
