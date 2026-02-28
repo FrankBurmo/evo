@@ -258,23 +258,29 @@ jobs:
   - Batch-opprettelse kun for valgte anbefalinger
   - Backend `POST /api/scan/create-issues` støtter `selected`-parameter for selektiv issue-opprettelse
 
-### Fase 5: GitHub Actions – Schedulert kjøring — ⏳ ~15% ferdig
+### Fase 5: GitHub Actions – Schedulert kjøring — ✅ Ferdig
 **Mål:** Automatisk daglig/ukentlig skanning uten manuell innsats
 
-**Ferdige oppgaver:**
+**Oppgaver:**
 - [x] GitHub Actions workflow `.github/workflows/frontend.yml` (CI/CD for frontend)
 - [x] CLI-verktøyet `evo-scan` kan brukes som basis for headless skanning
-
-**Gjenstående oppgaver:**
-- [ ] GitHub Actions workflow `.github/workflows/proactive-scan.yml`
-  - Cron-schedule (konfigurerbar, f.eks. ukentlig)
-  - `workflow_dispatch` for manuell utløsing
-  - Kjører `npx evo-scan scan --create-issues --json`
-- [ ] Konfigurasjonsfil `scan-config.json` for å styre:
-  - Hvilke repos som skal skannes (include/exclude-lister)
+- [x] GitHub Actions workflow `.github/workflows/proactive-scan.yml`
+  - Cron-schedule: ukentlig (mandag kl. 06:00 UTC), konfigurerbar
+  - `workflow_dispatch` med inputs: min-priority, create-issues, max-repos, dry-run, no-ai
+  - Kjører `node packages/cli/bin/evo-scan.js scan --config scan-config.json --json`
+  - Laster opp resultater som artefakt (`scan-results.json`)
+  - Genererer GitHub Actions Step Summary med metrikker
+- [x] Konfigurasjonsfil `scan-config.json` med JSON Schema (`scan-config.schema.json`)
+  - Include/exclude-lister for repos og språk
   - Minimum prioritetsnivå for å opprette issue (`high`, `medium`, `low`)
   - Maks antall issues per repo per kjøring
-  - Hvilke analyse-kategorier som er aktivert
+  - Aktivering/deaktivering av analyse-kategorier
+  - AI-modell, createIssues, assignCopilot-innstillinger
+- [x] CLI-utvidelse: `--config <path>` flagg for å laste scan-config.json
+  - Auto-detekterer `scan-config.json` i arbeidsmappe
+  - CLI-flagg overstyrer alltid config-verdier
+  - `--max-issues-per-repo` nytt flagg
+  - Filtrering på repos og språk fra config
 
 ### Fase 6: Avanserte funksjoner — ❌ Ikke startet
 **Mål:** Gjøre verktøyet smartere over tid
@@ -371,11 +377,12 @@ evo/
 └── index.html                      # Vite HTML entry point
 ```
 
-**Planlagte, men ennå ikke opprettede filer:**
+**Nylig opprettede filer (Fase 5):**
 ```
 ├── .github/workflows/
-│   └── proactive-scan.yml          # Schedulert skanning
-└── scan-config.json                # Skanningskonfigurasjon
+│   └── proactive-scan.yml          # Schedulert skanning (cron + dispatch)
+├── scan-config.json                # Skanningskonfigurasjon
+└── scan-config.schema.json         # JSON Schema for validation/intellisense
 ```
 
 ### API-endepunkter
@@ -469,8 +476,8 @@ Opprettet av Product Orchestrator 🚀
 | 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ❌ | Høy | Hent filstruktur, README, config |
 | 5 | Bulk-skanning fra UI (ScanControl + godkjenn/avvis) | 4 | ✅ | Medium | Ferdig — seleksjon + batch |
 | 6 | Prosjekttypegjenkjenning | 1 | ❌ | Medium | Android/web/API/library-deteksjon |
-| 7 | `proactive-scan.yml` GitHub Actions workflow | 5 | ❌ | Medium | Bruk `evo-scan` CLI i workflow |
-| 8 | `scan-config.json` konfigurasjonsfil | 5 | ❌ | Medium | Include/exclude, terskler |
+| 7 | `proactive-scan.yml` GitHub Actions workflow | 5 | ✅ | Medium | Ferdig — cron + dispatch + artefakt |
+| 8 | `scan-config.json` konfigurasjonsfil | 5 | ✅ | Medium | Ferdig — med JSON Schema |
 | 9 | Tester (unit + integration) | — | ❌ | Medium | Sett opp Vitest for frontend, Jest for CLI |
 | 10 | Dependency-analyse | 6 | ❌ | Lav | npm audit / GitHub Advisory API |
 | 11 | Sikkerhetsanalyse | 6 | ❌ | Lav | OpenSSF Scorecard-integrasjon |

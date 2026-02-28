@@ -1,0 +1,116 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evo Scan Configuration",
+  "description": "Konfigurasjon for proaktiv skanning med Evo / evo-scan CLI",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schedule": {
+      "type": "string",
+      "description": "Skanningsfrekvens for GitHub Actions (daily, weekly, biweekly, monthly)",
+      "enum": ["daily", "weekly", "biweekly", "monthly"],
+      "default": "weekly"
+    },
+    "scan": {
+      "type": "object",
+      "description": "Generelle skanningsinnstillinger",
+      "properties": {
+        "maxRepos": {
+          "type": "integer",
+          "description": "Maksimalt antall repos å skanne per kjøring",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        },
+        "minPriority": {
+          "type": "string",
+          "description": "Minimum prioritet for å vise/opprette issues",
+          "enum": ["low", "medium", "high"],
+          "default": "medium"
+        },
+        "maxIssuesPerRepo": {
+          "type": "integer",
+          "description": "Maks antall issues å opprette per repo per kjøring",
+          "minimum": 1,
+          "maximum": 50,
+          "default": 5
+        },
+        "useAI": {
+          "type": "boolean",
+          "description": "Bruk GitHub Copilot Models API for KI-analyse",
+          "default": true
+        },
+        "model": {
+          "type": "string",
+          "description": "AI-modell for analyse (f.eks. openai/gpt-4.1, claude-sonnet-4)",
+          "default": "openai/gpt-4.1"
+        },
+        "createIssues": {
+          "type": "boolean",
+          "description": "Opprett GitHub Issues automatisk",
+          "default": true
+        },
+        "assignCopilot": {
+          "type": "boolean",
+          "description": "Tildel opprettede issues til Copilot Coding Agent",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "filters": {
+      "type": "object",
+      "description": "Filtrer hvilke repos som skannes",
+      "properties": {
+        "includeRepos": {
+          "type": "array",
+          "description": "Kun skann disse repoene (tom = alle). Format: owner/repo eller bare repo-navn.",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "excludeRepos": {
+          "type": "array",
+          "description": "Ekskluder disse repoene fra skanning. Format: owner/repo eller bare repo-navn.",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "includeLanguages": {
+          "type": "array",
+          "description": "Kun skann repos med disse hovedspråkene (tom = alle)",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "excludeLanguages": {
+          "type": "array",
+          "description": "Ekskluder repos med disse hovedspråkene",
+          "items": { "type": "string" },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "categories": {
+      "type": "object",
+      "description": "Slå av/på analysekategorier",
+      "properties": {
+        "documentation": { "type": "boolean", "default": true },
+        "activity": { "type": "boolean", "default": true },
+        "community": { "type": "boolean", "default": true },
+        "visibility": { "type": "boolean", "default": true },
+        "maintenance": { "type": "boolean", "default": true },
+        "testing": { "type": "boolean", "default": true },
+        "ci": { "type": "boolean", "default": true },
+        "security": { "type": "boolean", "default": true },
+        "performance": { "type": "boolean", "default": true },
+        "architecture": { "type": "boolean", "default": true },
+        "ux": { "type": "boolean", "default": true },
+        "seo": { "type": "boolean", "default": true },
+        "accessibility": { "type": "boolean", "default": true }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

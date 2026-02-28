@@ -32,10 +32,21 @@ async function runScan({
   dryRun,
   useAi,
   maxRepos,
+  maxIssuesPerRepo,
+  assignCopilot,
   jsonOutput,
+  filters,
+  categories,
 }) {
   const octokit = new Octokit({ auth: token });
   const startTime = Date.now();
+
+  // Config-drevne filtre
+  const includeRepos = (filters && filters.includeRepos) || [];
+  const excludeRepos = (filters && filters.excludeRepos) || [];
+  const includeLanguages = (filters && filters.includeLanguages) || [];
+  const excludeLanguages = (filters && filters.excludeLanguages) || [];
+  const enabledCategories = categories || {};
 
   // ── Hent repos ────────────────────────────────────────────────
   let repos = [];
@@ -67,6 +78,30 @@ async function runScan({
     repos = allRepos
       .filter(r => !r.archived)
       .slice(0, maxRepos);
+  }
+
+  // Anvend config-filtre (include/exclude repos og språk)
+  if (!singleRepo) {
+    if (includeRepos.length > 0) {
+      const includeSet = new Set(includeRepos.map(r => r.toLowerCase()));
+      repos = repos.filter(r =>
+        includeSet.has(r.full_name.toLowerCase()) || includeSet.has(r.name.toLowerCase())
+      );
+    }
+    if (excludeRepos.length > 0) {
+      const excludeSet = new Set(excludeRepos.map(r => r.toLowerCase()));
+      repos = repos.filter(r =>
+        !excludeSet.has(r.full_name.toLowerCase()) && !excludeSet.has(r.name.toLowerCase())
+      );
+    }
+    if (includeLanguages.length > 0) {
+      const langSet = new Set(includeLanguages.map(l => l.toLowerCase()));
+      repos = repos.filter(r => r.language && langSet.has(r.language.toLowerCase()));
+    }
+    if (excludeLanguages.length > 0) {
+      const langSet = new Set(excludeLanguages.map(l => l.toLowerCase()));
+      repos = repos.filter(r => !r.language || !langSet.has(r.language.toLowerCase()));
+    }
   }
 
   if (!jsonOutput) printInfo(`${repos.length} repo(s) klar til analyse.\n`);
@@ -110,14 +145,20 @@ async function runScan({
       }
     }
 
-    // 3. Slå sammen anbefalinger, filtrer på min-prioritet
-    const allRecs = [...ruleRecs, ...aiRecs].filter(r =>
-      meetsMinPriority(r.priority, minPriority)
-    );
+    // 3. Slå sammen anbefalinger, filtrer på min-prioritet og kategorier
+    const allRecs = [...ruleRecs, ...aiRecs]
+      .filter(r => meetsMinPriority(r.priority, minPriority))
+      .filter(r => {
+        // Filtrer på aktiverte kategorier (hvis konfigurert)
+        if (!r.type || Object.keys(enabledCategories).length === 0) return true;
+        return enabledCategories[r.type] !== false;
+      });
 
-    // 4. Opprett issues (hvis aktivert)
+    // 4. Opprett issues (hvis aktivert), respekter maxIssuesPerRepo
+    let issuesCreatedForRepo = 0;
     for (const rec of allRecs) {
       if (createIssues || dryRun) {
+        if (maxIssuesPerRepo > 0 && issuesCreatedForRepo >= maxIssuesPerRepo) break;
         try {
           const [rOwner, rName] = repoData.fullName.split('/');
           const issueUrl = await createIssue({
@@ -127,7 +168,10 @@ async function runScan({
             recommendation: rec,
             dryRun,
           });
-          if (issueUrl) rec.issueUrl = issueUrl;
+          if (issueUrl) {
+            rec.issueUrl = issueUrl;
+            issuesCreatedForRepo++;
+          }
         } catch (err) {
           if (!jsonOutput) {
             process.stdout.write('\n');

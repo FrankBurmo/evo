@@ -1,0 +1,133 @@
+name: Proaktiv Repo-skanning
+
+# Automatisert skanning av alle repos med Evo.
+# Bruker evo-scan CLI med scan-config.json for konfigurasjon.
+
+on:
+  schedule:
+    # Hver mandag kl. 06:00 UTC
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      min-priority:
+        description: 'Minimum prioritet for issues (low, medium, high)'
+        required: false
+        default: ''
+        type: choice
+        options:
+          - ''
+          - low
+          - medium
+          - high
+      create-issues:
+        description: 'Opprett GitHub Issues automatisk'
+        required: false
+        default: true
+        type: boolean
+      max-repos:
+        description: 'Maks antall repos å skanne (0 = bruk config)'
+        required: false
+        default: '0'
+        type: string
+      dry-run:
+        description: 'Dry run — vis resultater uten å opprette issues'
+        required: false
+        default: false
+        type: boolean
+      no-ai:
+        description: 'Deaktiver AI-analyse (kun regelbasert)'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    name: Skann repos
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd packages/cli && npm ci
+
+      - name: Run proactive scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.EVO_SCAN_TOKEN }}
+        run: |
+          # Bygg CLI-flagg fra workflow-inputs
+          FLAGS="--config scan-config.json --json"
+
+          # workflow_dispatch-inputs overstyrer config
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -n "${{ inputs.min-priority }}" ]; then
+              FLAGS="$FLAGS --min-priority ${{ inputs.min-priority }}"
+            fi
+
+            if [ "${{ inputs.create-issues }}" = "true" ] && [ "${{ inputs.dry-run }}" != "true" ]; then
+              FLAGS="$FLAGS --create-issues"
+            fi
+
+            if [ "${{ inputs.dry-run }}" = "true" ]; then
+              FLAGS="$FLAGS --dry-run"
+            fi
+
+            if [ "${{ inputs.no-ai }}" = "true" ]; then
+              FLAGS="$FLAGS --no-ai"
+            fi
+
+            MAX_REPOS="${{ inputs.max-repos }}"
+            if [ "$MAX_REPOS" != "0" ] && [ -n "$MAX_REPOS" ]; then
+              FLAGS="$FLAGS --max-repos $MAX_REPOS"
+            fi
+          else
+            # Schedulert kjøring: bruk config (createIssues fra scan-config.json)
+            FLAGS="$FLAGS --create-issues"
+          fi
+
+          echo "🚀 Kjører: node packages/cli/bin/evo-scan.js scan $FLAGS"
+          node packages/cli/bin/evo-scan.js scan $FLAGS | tee scan-results.json
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-${{ github.run_number }}
+          path: scan-results.json
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f scan-results.json ]; then
+            REPOS=$(jq '.results | length' scan-results.json 2>/dev/null || echo '?')
+            RECS=$(jq '[.results[].recommendations | length] | add // 0' scan-results.json 2>/dev/null || echo '?')
+            ISSUES=$(jq '[.results[].recommendations[] | select(.issueUrl)] | length' scan-results.json 2>/dev/null || echo '0')
+
+            echo "## 🔍 Evo Proaktiv Skanning" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Metrikk | Verdi |" >> $GITHUB_STEP_SUMMARY
+            echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Repos skannet | $REPOS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Anbefalinger | $RECS |" >> $GITHUB_STEP_SUMMARY
+            echo "| Issues opprettet | $ISSUES |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "*Kjørt: $(date -u '+%Y-%m-%d %H:%M UTC')*" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ⚠️ Skanning feilet" >> $GITHUB_STEP_SUMMARY
+            echo "Ingen resultater ble generert." >> $GITHUB_STEP_SUMMARY
+          fi

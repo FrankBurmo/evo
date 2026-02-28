@@ -1,0 +1,34 @@
+{
+  "$schema": "./scan-config.schema.json",
+  "schedule": "weekly",
+  "scan": {
+    "maxRepos": 50,
+    "minPriority": "medium",
+    "maxIssuesPerRepo": 5,
+    "useAI": true,
+    "model": "openai/gpt-4.1",
+    "createIssues": true,
+    "assignCopilot": false
+  },
+  "filters": {
+    "includeRepos": [],
+    "excludeRepos": [],
+    "includeLanguages": [],
+    "excludeLanguages": []
+  },
+  "categories": {
+    "documentation": true,
+    "activity": true,
+    "community": true,
+    "visibility": true,
+    "maintenance": true,
+    "testing": true,
+    "ci": true,
+    "security": true,
+    "performance": true,
+    "architecture": true,
+    "ux": true,
+    "seo": true,
+    "accessibility": true
+  }
+}
