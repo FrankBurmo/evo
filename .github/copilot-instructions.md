@@ -28,12 +28,17 @@ React + Vite (frontend)  ←→  Express (backend, port 3001)  ←→  GitHub RE
 ## Katalogstruktur
 
 ```
-server/index.js          – Express API-server (all backend-logikk samlet her foreløpig)
+server/index.js          – Express API-server — oppsett, middleware, route-montering
+server/github.js         – Octokit-helpers: getOctokit, extractToken, assignCopilotToIssue
+server/templates.js      – Issue-body-templates for guardrails, product-dev og engineering-velocity
 server/analyzer.js       – Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
 server/copilot-client.js – Copilot Models API-klient — KI-analyse med prosjekttype-prompts og rate limiting
+server/routes/repos.js   – Ruter for repo-analyse (GET /api/repos, /repo/:o/:n, /deep, /ai-analyze)
+server/routes/issues.js  – Ruter for issue-opprettelse (create-agent-issue, guardrails, product-dev, eng-velocity)
+server/routes/scan.js    – Ruter for proaktiv skanning (scan/start, scan/status, scan/results, scan/create-issues)
 src/App.jsx              – Root React-komponent, autentiseringsflyt
 src/components/          – React-komponenter (Dashboard, panels, cards, modals)
-src/index.css            – Global CSS
+src/styles/              – CSS-filer (base, komponenter, animasjoner, responsiv)
 public/                  – Statiske filer
 plan.md                  – Detaljert utviklingsplan og roadmap
 ```

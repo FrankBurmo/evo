@@ -337,9 +337,15 @@ SCAN_EXCLUDE_REPOS=repo1,repo2        # Repos som skal ekskluderes
 ```
 evo/
 ├── server/
-│   ├── index.js                    # API-server — all backend-logikk (1364 linjer)
+│   ├── index.js                    # API-server — oppsett, middleware, route-montering (~40 linjer)
+│   ├── github.js                   # Octokit-helpers: getOctokit, extractToken, assignCopilotToIssue
+│   ├── templates.js                # Issue-body-templates: guardrails, product-dev, engineering-velocity
 │   ├── analyzer.js                 # Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
-│   └── copilot-client.js           # Copilot Models API-klient — KI-analyse med prosjekttype-prompts
+│   ├── copilot-client.js           # Copilot Models API-klient — KI-analyse med prosjekttype-prompts
+│   └── routes/
+│       ├── repos.js                # Repo-analyse-ruter (GET /api/repos, /repo/:o/:n, /deep, /ai-analyze)
+│       ├── issues.js               # Issue-opprettelse-ruter (create-agent-issue, guardrails, product-dev, eng-velocity)
+│       └── scan.js                 # Proaktiv skanning-ruter (scan/start, scan/status, scan/results, scan/create-issues)
 ├── src/
 │   ├── App.jsx                     # Autentiseringsflyt
 │   ├── main.jsx                    # React entry point
@@ -470,7 +476,7 @@ Opprettet av Product Orchestrator 🚀
 
 | # | Oppgave | Fase | Status | Prioritet | Neste steg |
 |---|---------|------|--------|-----------|------------|
-| 1 | Refaktorér `server/index.js` — trekk ut analyse, templates, issues | 1 | ❌ | Høy | Splitt 1461 linjer til moduler |
+| 1 | Refaktorér `server/index.js` — trekk ut analyse, templates, issues | 1 | ✅ | Høy | Splittet til moduler: `github.js`, `templates.js`, `routes/` |
 | 2 | Copilot Models API i Express-backend | 2 | ✅ | Høy | `server/copilot-client.js` med prosjekttype-prompts |
 | 3 | AI-drevet repo-analyse i dashboard | 2 | ✅ | Høy | Integrert i `/api/repo/:owner/:name/deep` og `/api/scan/start` |
 | 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ❌ | Høy | Hent filstruktur, README, config |
