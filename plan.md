@@ -54,7 +54,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 ### Hva mangler
 
 - **Ingen AI-analyse i web-dashboard** — Copilot Models API brukes kun i CLI, ikke i Express-backend
-- **Ingen dyp kodeanalyse** — verken web eller CLI henter filstruktur/kildekode (kun repo-metadata)
+- **~~Ingen dyp kodeanalyse~~** — ✅ **Løst i fase 1**: `server/analyzer.js` henter filstruktur, kildekode, commits og kategoriserer prosjekttype
 - **Ingen proaktiv bulk-skanning fra UI** — ingen «Start skanning»-knapp, fremdriftsvising eller resultatoversikt
 - **Ingen schedulert kjøring** — mangler `proactive-scan.yml` workflow og `scan-config.json`
 - **Ingen prosjekttypegjenkjenning** — Android, web, API, etc. kategoriseres ikke
@@ -181,12 +181,12 @@ jobs:
 
 ## Utviklingsplan – Faser
 
-### Fase 1: Dyp repoanalyse med GitHub API (backend) — ⏳ ~30% ferdig
+### Fase 1: Dyp repoanalyse med GitHub API (backend) — ✅ Ferdig
 **Mål:** Utvide backend-analysen til å hente og vurdere faktisk innhold fra hvert repo
 
 **Oppgaver:**
 - [x] Regelbasert analyse i backend (`server/index.js`) og CLI (`packages/cli/src/analyzer.js`)
-- [ ] Ny modul `server/analyzer.js` — utvidet analysemotor (separat fra index.js)
+- [x] Ny modul `server/analyzer.js` — utvidet analysemotor (separat fra index.js)
   - Hent filstruktur (`repos.getContent`) for å identifisere prosjekttype
   - Detekter om det er en Android-app (sjekk for `AndroidManifest.xml`, `build.gradle`)
   - Detekter om det er et nettsted (sjekk for `index.html`, `package.json` med React/Vue/Next)
@@ -195,9 +195,9 @@ jobs:
   - Sjekk for CI/CD-oppsett (`/.github/workflows/`)
   - Sjekk for tester (`__tests__/`, `test/`, `*.test.js`, `*Test.java`)
   - Sjekk for lisens, CONTRIBUTING.md, SECURITY.md
-- [ ] Hent siste commits for aktivitetsanalyse
+- [x] Hent siste commits for aktivitetsanalyse
 - [x] Hent eksisterende issues for å unngå duplikater (implementert i CLI: `issues.js`)
-- [ ] Kategoriser repos: `web-app` | `android-app` | `library` | `api` | `docs` | `other`
+- [x] Kategoriser repos: `web-app` | `android-app` | `library` | `api` | `docs` | `other`
 
 ### Fase 2: KI-drevet analyse med GitHub Copilot Models API — ⏳ ~50% ferdig
 **Mål:** Bruke Copilot Models API til intelligent vurdering av hvert repo
@@ -326,7 +326,8 @@ SCAN_EXCLUDE_REPOS=repo1,repo2        # Repos som skal ekskluderes
 ```
 evo/
 ├── server/
-│   └── index.js                    # API-server — all backend-logikk (1461 linjer)
+│   ├── index.js                    # API-server — all backend-logikk (1364 linjer)
+│   └── analyzer.js                 # Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
 ├── src/
 │   ├── App.jsx                     # Autentiseringsflyt
 │   ├── main.jsx                    # React entry point
