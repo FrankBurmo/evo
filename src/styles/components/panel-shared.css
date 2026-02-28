@@ -1,0 +1,88 @@
+/* ─── Shared Panel Base (Guardrails, ProductDev, EngVelocity) ────────── */
+
+.guardrails-panel,
+.productdev-panel,
+.engvelocity-panel {
+  margin: 0 auto 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.guardrails-panel:hover,
+.productdev-panel:hover,
+.engvelocity-panel:hover {
+  border-color: var(--border-strong);
+}
+
+/* ─── Shared Trigger Section ─────────────────────────────────────────── */
+
+.trigger-controls {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.repo-select {
+  flex: 1;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 0.2s;
+  font-family: 'Inter', sans-serif;
+}
+
+.repo-select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.repo-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.trigger-result {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.84rem;
+}
+
+.trigger-result.success {
+  background: rgba(0, 229, 160, 0.08);
+  border: 1px solid rgba(0, 229, 160, 0.25);
+  color: var(--success);
+}
+
+.trigger-result.error {
+  background: rgba(255, 77, 106, 0.08);
+  border: 1px solid rgba(255, 77, 106, 0.25);
+  color: var(--danger);
+}
+
+.trigger-result a {
+  color: var(--accent-2);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.trigger-result a:hover {
+  text-decoration: underline;
+}
+
+.trigger-note {
+  font-size: 0.77rem;
+  color: var(--text-muted);
+  margin: 0;
+}

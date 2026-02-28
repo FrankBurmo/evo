@@ -1,0 +1,43 @@
+/* ─── Stats Bar ──────────────────────────────────────────────────────── */
+
+.stats {
+  margin: 0 auto 28px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 2px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.stat-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.stat-item .stat-value {
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.stat-item .stat-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}

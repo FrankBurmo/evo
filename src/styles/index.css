@@ -1,0 +1,36 @@
+/*
+ * Product Orchestrator – CSS Entry Point
+ *
+ * Architecture:
+ *   variables.css      – Design tokens (colors, radii, spacing)
+ *   base.css           – Reset, body, fonts, app layout
+ *   animations.css     – Shared keyframe animations
+ *   buttons.css        – Shared button styles
+ *   toggle.css         – Toggle switch component
+ *   components/        – One file per UI component / section
+ *   responsive.css     – Media queries (loaded last)
+ */
+
+/* ─── Foundation ─────────────────────────────────────────────────────── */
+@import './variables.css';
+@import './base.css';
+@import './animations.css';
+@import './buttons.css';
+@import './toggle.css';
+
+/* ─── Components ─────────────────────────────────────────────────────── */
+@import './components/header.css';
+@import './components/auth.css';
+@import './components/loading.css';
+@import './components/filters.css';
+@import './components/stats.css';
+@import './components/repo-card.css';
+@import './components/modal.css';
+@import './components/panel-shared.css';
+@import './components/guardrails.css';
+@import './components/product-dev.css';
+@import './components/eng-velocity.css';
+@import './components/scan-control.css';
+
+/* ─── Responsive ─────────────────────────────────────────────────────── */
+@import './responsive.css';
