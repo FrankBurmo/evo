@@ -234,29 +234,29 @@ jobs:
 - [x] Batch-modus i CLI (skanner alle repos og oppretter issues automatisk)
 - [x] Batch-modus i web-UI (`ScanControl.jsx` — opprett alle foreslåtte issues med én knapp)
 
-### Fase 4: Frontend – Scan-orkestrering — ⏳ ~65% ferdig
+### Fase 4: Frontend – Scan-orkestrering — ✅ Ferdig
 **Mål:** Utvide dashboardet med UI for å starte og overvåke skanninger
 
-> **Merk:** Bulk-skanning er nå implementert via `ScanControl.jsx`.
+> **Merk:** All funksjonalitet er implementert i `ScanControl.jsx`.
 
-**Ferdige oppgaver:**
+**Oppgaver:**
 - [x] `GuardrailsPanel.jsx` — arkitekturanalyse per repo med av/på-toggles
 - [x] `ProductDevelopmentPanel.jsx` — 5 produktutviklingsanalyser per repo
 - [x] `EngineeringVelocityPanel.jsx` — 5 leveransekvalitetsanalyser per repo
 - [x] `AgentModal.jsx` — modal for å opprette issue og tildele til Copilot
 - [x] `Dashboard.jsx` oppdatert med paneler, filtrering og statistikk
-
-**Gjenstående oppgaver:**
-- [x] Ny komponent `ScanControl.jsx` — start/stopp proaktiv bulk-skanning
+- [x] `ScanControl.jsx` — start/stopp proaktiv bulk-skanning
   - Knapp "Start proaktiv skanning"
   - Fremdriftsindikator per repo
   - Vise resultater fortløpende
   - Batch issue-opprettelse med Copilot-tildeling
-- [ ] Ny komponent `ScanResults.jsx` — vise samlede skanningsresultater (valgfritt, integrert i ScanControl nå)
-  - ~~Liste med foreslåtte issues per repo~~ ✅ Integrert i ScanControl
-  - [ ] Mulighet til å godkjenne/avvise individuelle forslag
-  - ~~"Opprett alle issues"-knapp~~ ✅ Integrert i ScanControl
-  - ~~"Opprett issue og tilordne til @copilot"-knapp~~ ✅ Integrert i ScanControl
+- [x] Godkjenne/avvise individuelle forslag — `ScanControl.jsx` med seleksjon
+  - Checkbox per anbefaling for å velge/avvelge
+  - "Velg alle" / "Fjern alle" — både globalt og per repo
+  - Teller for valgte anbefalinger i oppsummering
+  - Opprett enkeltstående issue per anbefaling (📝-knapp)
+  - Batch-opprettelse kun for valgte anbefalinger
+  - Backend `POST /api/scan/create-issues` støtter `selected`-parameter for selektiv issue-opprettelse
 
 ### Fase 5: GitHub Actions – Schedulert kjøring — ⏳ ~15% ferdig
 **Mål:** Automatisk daglig/ukentlig skanning uten manuell innsats
@@ -390,10 +390,10 @@ evo/
 | ✅ | `POST` | `/api/product-dev/:actionId` | 5 produktutviklings-issues |
 | ✅ | `POST` | `/api/engineering-velocity/:actionId` | 5 leveransekvalitet-issues |
 | ✅ | `POST` | `/api/repo/:owner/:name/ai-analyze` | Dedikert KI-analyse med Copilot Models API |
-| ❌ | `POST` | `/api/scan/start` | Start proaktiv skanning av alle repos |
-| ❌ | `GET` | `/api/scan/status` | Hent status for pågående skanning |
-| ❌ | `GET` | `/api/scan/results` | Hent resultater fra siste skanning |
-| ❌ | `POST` | `/api/scan/create-all-issues` | Opprett alle foreslåtte issues |
+| ✅ | `POST` | `/api/scan/start` | Start proaktiv skanning av alle repos |
+| ✅ | `GET` | `/api/scan/status` | Hent status for pågående skanning |
+| ✅ | `GET` | `/api/scan/results` | Hent resultater fra siste skanning |
+| ✅ | `POST` | `/api/scan/create-issues` | Opprett valgte/alle foreslåtte issues |
 
 ---
 
@@ -467,7 +467,7 @@ Opprettet av Product Orchestrator 🚀
 | 2 | Copilot Models API i Express-backend | 2 | ✅ | Høy | `server/copilot-client.js` med prosjekttype-prompts |
 | 3 | AI-drevet repo-analyse i dashboard | 2 | ✅ | Høy | Integrert i `/api/repo/:owner/:name/deep` og `/api/scan/start` |
 | 4 | Dyp kodeanalyse (`repos.getContent`) | 1 | ❌ | Høy | Hent filstruktur, README, config |
-| 5 | Bulk-skanning fra UI (ScanControl + ScanResults) | 4 | ❌ | Medium | Bygge scan-endepunkter + frontend |
+| 5 | Bulk-skanning fra UI (ScanControl + godkjenn/avvis) | 4 | ✅ | Medium | Ferdig — seleksjon + batch |
 | 6 | Prosjekttypegjenkjenning | 1 | ❌ | Medium | Android/web/API/library-deteksjon |
 | 7 | `proactive-scan.yml` GitHub Actions workflow | 5 | ❌ | Medium | Bruk `evo-scan` CLI i workflow |
 | 8 | `scan-config.json` konfigurasjonsfil | 5 | ❌ | Medium | Include/exclude, terskler |

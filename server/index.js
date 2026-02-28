@@ -1746,9 +1746,12 @@ app.get('/api/scan/results', (req, res) => {
 });
 
 /**
+/**
  * POST /api/scan/create-issues
- * Batch-opprett issues for alle anbefalinger fra siste skanning.
- * Body: { assignCopilot?: boolean }
+ * Batch-opprett issues for valgte anbefalinger fra siste skanning.
+ * Body: { assignCopilot?: boolean, selected?: [{ repoFullName, recIndex }] }
+ * Hvis `selected` er oppgitt, opprettes kun issues for de valgte anbefalingene.
+ * Uten `selected` opprettes issues for alle anbefalinger (bakoverkompatibel).
  */
 app.post('/api/scan/create-issues', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
@@ -1760,15 +1763,30 @@ app.post('/api/scan/create-issues', async (req, res) => {
     return res.status(400).json({ error: 'Ingen skanningsresultater tilgjengelig. Kjør en skanning først.' });
   }
 
-  const { assignCopilot = false } = req.body || {};
+  const { assignCopilot = false, selected } = req.body || {};
   const octokit = getOctokit(token);
   const created = [];
   const skipped = [];
   const errors = [];
 
+  // Build a lookup of selected items: { repoFullName: Set<recIndex> }
+  let selectionMap = null;
+  if (Array.isArray(selected) && selected.length > 0) {
+    selectionMap = {};
+    for (const s of selected) {
+      if (!selectionMap[s.repoFullName]) selectionMap[s.repoFullName] = new Set();
+      selectionMap[s.repoFullName].add(s.recIndex);
+    }
+  }
+
   for (const result of scanState.results) {
     if (result.recommendations.length === 0) continue;
-    if (result.issuesCreated.some(i => i.status === 'created')) continue; // already created in this scan
+
+    // If selection provided, skip repos not in selection
+    if (selectionMap && !selectionMap[result.repo.fullName]) continue;
+
+    // Without selection, skip repos that already had all issues created
+    if (!selectionMap && result.issuesCreated.some(i => i.status === 'created')) continue;
 
     const [owner, repoName] = result.repo.fullName.split('/');
 
@@ -1781,7 +1799,20 @@ app.post('/api/scan/create-issues', async (req, res) => {
       existingTitles = new Set(existing.map(i => i.title.toLowerCase().trim()));
     } catch { /* ignore */ }
 
-    for (const rec of result.recommendations) {
+    const repoSelection = selectionMap ? selectionMap[result.repo.fullName] : null;
+
+    for (let idx = 0; idx < result.recommendations.length; idx++) {
+      const rec = result.recommendations[idx];
+
+      // If selection provided, only process selected indices
+      if (repoSelection && !repoSelection.has(idx)) continue;
+
+      // Skip already-created issues
+      if (result.issuesCreated.find(ic => ic.title === rec.title && ic.status === 'created')) {
+        skipped.push({ repo: result.repo.fullName, title: rec.title, reason: 'already-created' });
+        continue;
+      }
+
       const issueTitle = `[Evo] ${rec.title}`;
       if (existingTitles.has(issueTitle.toLowerCase().trim())) {
         skipped.push({ repo: result.repo.fullName, title: rec.title, reason: 'duplicate' });
@@ -1790,7 +1821,7 @@ app.post('/api/scan/create-issues', async (req, res) => {
 
       try {
         const priorityEmoji = { high: '🔴', medium: '🟡', low: '🔵' }[rec.priority] || '⚪';
-        const body = `## ${priorityEmoji} ${rec.title}\n\n> Automatisk opprettet av **Evo** — batch issue-opprettelse.\n\n---\n\n### 📋 Beskrivelse\n\n${rec.description}\n\n${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}\n\n` : ''}---\n\n### ✅ Akseptansekriterier\n\n- [ ] Problemet er løst\n- [ ] Endringen er testet\n- [ ] PR er opprettet\n\n---\n\n*Opprettet av Evo • Prioritet: \`${rec.priority}\` • Type: \`${rec.type || 'generell'}\`*`;
+        const body = `## ${priorityEmoji} ${rec.title}\n\n> Automatisk opprettet av **Evo** — proaktiv skanning.\n\n---\n\n### 📋 Beskrivelse\n\n${rec.description}\n\n${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}\n\n` : ''}---\n\n### ✅ Akseptansekriterier\n\n- [ ] Problemet er løst\n- [ ] Endringen er testet\n- [ ] PR er opprettet\n\n---\n\n*Opprettet av Evo • Prioritet: \`${rec.priority}\` • Type: \`${rec.type || 'generell'}\`*`;
 
         const labels = ['evo-scan'];
         if (rec.priority === 'high') labels.push('priority: high');
