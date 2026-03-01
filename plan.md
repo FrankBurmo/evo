@@ -16,6 +16,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 
 - **Fase 1–5 komplett:** Dyp repoanalyse, KI-analyse (Copilot Models API), automatisk issue-opprettelse, scan-orkestrering i UI, schedulert kjøring via GitHub Actions
 - **Fase A komplett:** Sikkerhetshardening — `helmet()`, CORS-begrensning, global error-handler, zod-validering, `requireAuth`-middleware, timeout, graceful shutdown
+- **Fase C komplett:** Frontend-kvalitet og tilgjengelighet — a11y, performance, søk/sortering, skeleton loading, toast, Error Boundary
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -50,10 +51,10 @@ Basert på en grundig gjennomgang av hele kodebasen (februar 2026) er følgende 
 - In-memory scan-tilstand — forsvinner ved restart, kun single-tenant
 
 **Frontend/UX:**
-- Ingen a11y: modalen mangler fokus-felle/`role="dialog"`, klikkbare `<div>`-er overalt, `lang="en"` i HTML
-- `applyFilter` i Dashboard er et `useEffect`-antimønster (bør være `useMemo`)
-- Ingen søk, sortering, Error Boundary, URL-routing, skeleton loading
-- Blanding av norsk og engelsk i UI-tekster
+- ~~Ingen a11y: modalen mangler fokus-felle/`role="dialog"`, klikkbare `<div>`-er overalt, `lang="en"` i HTML~~ ✅ Løst — Fase C
+- ~~`applyFilter` i Dashboard er et `useEffect`-antimønster (bør være `useMemo`)~~ ✅ Løst — Fase C
+- ~~Ingen søk, sortering, Error Boundary, skeleton loading~~ ✅ Løst — Fase C
+- ~~Blanding av norsk og engelsk i UI-tekster~~ ✅ Løst — Fase G
 
 **Tester:**
 - Estimert dekning: CLI ~30%, server ~20%, frontend ~25%
@@ -257,38 +258,38 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-### Fase C: Frontend-kvalitet og tilgjengelighet 🟡 Middels-høy
+### Fase C: Frontend-kvalitet og tilgjengelighet ✅ Ferdig
 
 **Mål:** Fikse a11y-mangler, performance-problemer og UX-hull i dashboardet.
 
 **Oppgaver:**
 
 #### C1. Tilgjengelighet (a11y) — kritiske feil
-- [ ] `index.html`: Endre `lang="en"` til `lang="nb"`
-- [ ] `AgentModal`: Legg til `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, fokus-felle, Escape-lukking, fokus-retur
-- [ ] Erstatt alle klikkbare `<div>`-er med `<button>` (filtre i Dashboard, anbefalinger i RepositoryCard, panel-headers)
-- [ ] Legg til `<label htmlFor>` / `id`-kobling i login-skjema
-- [ ] Progressbar i ScanControl: `role="progressbar"`, `aria-valuenow`, `aria-valuemax`
-- [ ] `aria-live`-regioner for dynamisk innhold (feilmeldinger, skannestatus)
+- [x] `index.html`: Allerede `lang="nb"` (gjort i Fase G)
+- [x] `AgentModal`: Lagt til `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, fokus-felle, Escape-lukking, fokus-retur
+- [x] Erstattet alle klikkbare `<div>`-er med `<button>` (filtre i Dashboard, anbefalinger i RepositoryCard, panel-headers i ConfigurablePanel/ScanControl, code-insights-toggle)
+- [x] Lagt til `<label htmlFor>` / `id`-kobling i login-skjema
+- [x] Progressbar i ScanProgress: `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`
+- [x] `aria-live`-regioner for dynamisk innhold (feilmeldinger, skannestatus, filtreringsresultater)
 
 #### C2. Performance-fikser
-- [ ] `calculateStats()` i Dashboard → wrap i `useMemo`
-- [ ] `applyFilter` `useEffect`-antimønster → erstatt med `useMemo` for derived state
-- [ ] `formatDate()` i RepositoryCard → flytt ut av komponenten
-- [ ] `React.memo` på `RepositoryCard` for å unngå unødvendig re-rendering
-- [ ] Fjern inline `onMouseEnter`/`onMouseLeave` → CSS `:hover`
+- [x] `calculateStats()` i Dashboard → wrappet i `useMemo`
+- [x] `applyFilter` `useEffect`-antimønster → erstattet med `useMemo` for derived state (fjernet `filteredRepos`-state + useEffect)
+- [x] `formatDate()` i RepositoryCard → flyttet ut av komponenten
+- [x] `React.memo` på `RepositoryCard` for å unngå unødvendig re-rendering
+- [x] Fjernet inline `onMouseEnter`/`onMouseLeave` på logg-ut-knapp → CSS `.btn-logout` med `:hover`
 
 #### C3. UX-forbedringer
-- [ ] Søk/filtrer repos etter navn
-- [ ] Sortering (etter stjerner, sist oppdatert, navn, prioritet)
-- [ ] Toast/notifikasjoner for asynkrone handlinger (issue opprettet, skanning ferdig)
-- [ ] Skeleton loading i stedet for «Laster repositories...»
-- [ ] Trekk ut `<Header>`-komponent fra Dashboard (duplisert i 3 tilstander)
-- [ ] React Error Boundary som fanger uventede feil
+- [x] Søk/filtrer repos etter navn — `<input type="search">` med live-filtrering
+- [x] Sortering (etter stjerner, sist oppdatert, navn, prioritet) — `<select>` + stigende/synkende knapp
+- [x] Toast/notifikasjoner for asynkrone handlinger — `ToastProvider` + `useToast` context-hook
+- [x] Skeleton loading i stedet for «Laster repositories...» — `SkeletonCard`-komponent med shimmer-animasjon
+- [x] Trukket ut `<Header>`-komponent fra Dashboard (duplisert i 3 tilstander)
+- [x] React Error Boundary som fanger uventede feil — `ErrorBoundary`-komponent med reload-knapp
 
 #### C4. State management
-- [ ] Lag `useLocalStorage`-hook for panel-konfigurasjoner (erstatter duplisert inline-kode)
-- [ ] Vurder `useContext` for token-propagering (sendes gjennom 3+ nivåer via props)
+- [x] Laget `useLocalStorage`-hook for panel-konfigurasjoner (erstatter duplisert inline localStorage-kode i ConfigurablePanel)
+- [x] Vurdert `useContext` for token-propagering — besluttet å beholde prop-passing for nåværende omfang; kan vurderes på nytt når flere nivåer/komponenter trenger token
 
 **Estimat:** 3–4 dager | **Risiko:** Lav
 
@@ -432,10 +433,10 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 | B3 | Service-lag i backend | B | 🟠 Høy | ✅ | 6t |
 | B4 | Splitt store filer | B | 🟠 Høy | ✅ | 4t |
 | B5 | Fjern død kode | B | 🟠 Høy | ✅ | 1t |
-| C1 | A11y-fikser (kritiske) | C | 🟡 Middels | ❌ | 3t |
-| C2 | Performance-fikser | C | 🟡 Middels | ❌ | 2t |
-| C3 | UX-forbedringer | C | 🟡 Middels | ❌ | 4t |
-| C4 | State management | C | 🟡 Middels | ❌ | 2t |
+| C1 | A11y-fikser (kritiske) | C | 🟡 Middels | ✅ | 3t |
+| C2 | Performance-fikser | C | 🟡 Middels | ✅ | 2t |
+| C3 | UX-forbedringer | C | 🟡 Middels | ✅ | 4t |
+| C4 | State management | C | 🟡 Middels | ✅ | 2t |
 | D1 | Backend route-tester | D | 🟡 Middels | ❌ | 4t |
 | D2 | Backend kjernefunksjon-tester | D | 🟡 Middels | ❌ | 3t |
 | D3 | CLI-tester | D | 🟡 Middels | ❌ | 3t |
@@ -526,6 +527,34 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - `.github/copilot-instructions.md` fullstendig omskrevet med ny arkitektur
 - Alle «Product Orchestrator»-referanser fjernet fra kode (kun plan.md historikk gjenstår)
 - CSS-kommentarer, demo.html, issue-body rebrandet til Evo/norsk
+
+### Fase C: Frontend-kvalitet og tilgjengelighet — ✅ Ferdig (1. mars 2026)
+- **C1 — Tilgjengelighet (a11y):**
+  - `AgentModal`: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, fokus-felle (Tab/Shift+Tab), Escape-lukking, fokus-retur ved unmount
+  - Alle klikkbare `<div>`-er erstattet med `<button>`: filtreringsknapper i Dashboard, anbefalinger i RepositoryCard, panel-headers (accordion-mønster) i ConfigurablePanel og ScanControl, code-insights-toggle
+  - Login-skjema: `<label htmlFor="github-token-input">` + `id` på input
+  - ScanProgress: `role="progressbar"`, `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-label`
+  - `aria-live`-regioner: feilmeldinger (`role="alert"`), skannefeil (`aria-live="assertive"`), filtreringsresultater (`aria-live="polite"`)
+  - `.sr-only`-klasse lagt til i `base.css` for skjermleser-tekster
+- **C2 — Performance:**
+  - `calculateStats()` → `useMemo(…, [repos])` — beregnes kun når repos endres
+  - `applyFilter` useEffect-antimønster → erstattet med `useMemo` for derived state — fjernet `filteredRepos`-state og useEffect
+  - `formatDate()` flyttet ut av RepositoryCard-komponenten til modulnivå
+  - `React.memo` wrappet rundt `RepositoryCard` for å unngå unødvendige re-rendringer
+  - Inline `onMouseEnter`/`onMouseLeave` fjernet fra logg-ut-knapp → `.btn-logout` CSS med `:hover`
+- **C3 — UX-forbedringer:**
+  - Søk: `<input type="search">` med live-filtrering etter reponavn, fullnavn og beskrivelse
+  - Sortering: `<select>` (navn/stjerner/sist oppdatert/prioritet) + stigende/synkende-knapp
+  - Toast-system: `ToastProvider` + `useToast()` context-hook — viser notifikasjoner med auto-dismiss (4s)
+  - Skeleton loading: `SkeletonCard`-komponent med shimmer-animasjon erstatter «Laster repositories...»
+  - `Header`-komponent trukket ut — eliminerer duplisert header-markup i 3 Dashboard-tilstander
+  - `ErrorBoundary`-komponent fanger uventede React-feil med reload-knapp
+- **C4 — State management:**
+  - `useLocalStorage`-hook opprettet i `src/hooks/useLocalStorage.js` — brukes i ConfigurablePanel (erstatter manuell localStorage-håndtering)
+  - `useContext` for token vurdert — beholdt prop-passing grunnet akseptabelt nesting-nivå (2–3 nivåer)
+- **Nye filer:** `src/hooks/useLocalStorage.js`, `src/components/Header.jsx`, `src/components/ErrorBoundary.jsx`, `src/components/Toast.jsx`, `src/components/SkeletonCard.jsx`, `src/styles/components/toast.css`, `src/styles/components/skeleton.css`
+- **Endrede filer:** `App.jsx`, `Dashboard.jsx`, `AgentModal.jsx`, `RepositoryCard.jsx`, `ScanProgress.jsx`, `ScanControl.jsx`, `ConfigurablePanel.jsx`, `base.css`, `filters.css`, `header.css`, `repo-card.css`, `configurable-panel.css`, `scan-control.css`, `index.css`
+- Alle 106 tester passerer etter endringene
 
 </details>
 

@@ -259,21 +259,27 @@ function ScanControl({ token }) {
 
   return (
     <div className="panel scan-panel">
-      <div className="panel-header" onClick={() => setIsExpanded(!isExpanded)}>
+      <h2 className="sr-only" id="scan-panel-heading">Proaktiv skanning</h2>
+      <button
+        className="panel-header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+        aria-controls="scan-panel-content"
+      >
         <div className="panel-header-left">
-          <span className="panel-icon">🔍</span>
+          <span className="panel-icon" aria-hidden="true">🔍</span>
           <div>
-            <h2>Proaktiv skanning</h2>
+            <span className="panel-header-title">Proaktiv skanning</span>
             <p className="panel-subtitle">
               Skann alle repos med dyp analyse — opprett issues automatisk
             </p>
           </div>
         </div>
-        <span className={`panel-toggle ${isExpanded ? 'expanded' : ''}`}>▸</span>
-      </div>
+        <span className={`panel-toggle ${isExpanded ? 'expanded' : ''}`} aria-hidden="true">▸</span>
+      </button>
 
       {isExpanded && (
-        <div className="panel-content">
+        <div className="panel-content" id="scan-panel-content" role="region" aria-labelledby="scan-panel-heading">
           <ScanOptions
             createIssues={createIssues}
             setCreateIssues={setCreateIssues}
@@ -289,7 +295,7 @@ function ScanControl({ token }) {
 
           {scanStatus === 'running' && <ScanProgress progress={progress} />}
 
-          {error && <div className="scan-error">⚠️ {error}</div>}
+          {error && <div className="scan-error" role="alert" aria-live="assertive">⚠️ {error}</div>}
 
           {results && scanStatus !== 'running' && (
             <ScanResults

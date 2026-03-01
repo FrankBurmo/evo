@@ -25,10 +25,22 @@
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
+  /* button reset for accordion pattern */
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
 }
 
 .panel__header:hover {
   background: rgba(255, 255, 255, 0.025);
+}
+
+.panel__header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .panel__header-left {

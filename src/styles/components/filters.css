@@ -31,6 +31,8 @@
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.82rem;
+  font-family: inherit;
+  line-height: inherit;
   color: var(--text-secondary);
   user-select: none;
 }
@@ -47,4 +49,86 @@
   border-color: var(--accent);
   font-weight: 500;
   box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* ─── Search & Sort Controls ─────────────────────────────────────────── */
+
+.filter-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-search-sort {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-search {
+  flex: 1;
+  min-width: 180px;
+}
+
+.filter-search-input {
+  width: 100%;
+  padding: 7px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.filter-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.filter-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.15);
+}
+
+.filter-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-sort-select {
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.filter-sort-select option {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.filter-sort-order {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+
+.filter-sort-order:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-color: var(--accent);
 }

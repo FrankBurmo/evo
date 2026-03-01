@@ -177,6 +177,7 @@
 }
 
 .recommendation .rec-description {
+  display: block;
   font-size: 0.81rem;
   color: var(--text-secondary);
   margin-bottom: 8px;
@@ -184,6 +185,7 @@
 }
 
 .recommendation .rec-opportunity {
+  display: block;
   font-size: 0.78rem;
   color: var(--accent-2);
   font-style: italic;
@@ -194,8 +196,19 @@
   border: 1px solid rgba(0, 212, 255, 0.12);
 }
 
-/* Clickable recommendations */
+/* Disabled recommendation button (info-only) */
+.recommendation-clickable:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+/* Clickable recommendations (button) */
 .recommendation-clickable {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  line-height: inherit;
   cursor: pointer;
   transition: border-color 0.15s, transform 0.15s;
 }
@@ -265,13 +278,28 @@
 
 .code-insights-toggle {
   display: flex;
+  width: 100%;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   padding: 2px 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  color: inherit;
 }
 
-.code-insights-toggle h4 {
+.code-insights-toggle:hover {
+  opacity: 0.85;
+}
+
+.code-insights-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.code-insights-label {
   font-size: 0.72rem;
   color: var(--text-secondary);
   text-transform: uppercase;

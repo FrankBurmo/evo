@@ -1,9 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function AgentModal({ recommendation, repo, token, onClose }) {
   const [status, setStatus] = useState('idle'); // idle | loading | success | error
   const [issueUrl, setIssueUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const modalRef = useRef(null);
+  const previousFocusRef = useRef(null);
+
+  // Fokus-felle, Escape-lukking og fokus-retur
+  useEffect(() => {
+    previousFocusRef.current = document.activeElement;
+
+    const modal = modalRef.current;
+    if (!modal) return;
+
+    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const firstFocusable = modal.querySelector(focusableSelector);
+    firstFocusable?.focus();
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusable = modal.querySelectorAll(focusableSelector);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
+  }, [onClose]);
 
   const handleConfirm = async () => {
     setStatus('loading');
@@ -39,10 +84,16 @@ function AgentModal({ recommendation, repo, token, onClose }) {
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal">
+      <div
+        className="modal"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="agent-modal-title"
+      >
         <div className="modal-header">
-          <h2>🤖 La Copilot fikse dette?</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <h2 id="agent-modal-title">🤖 La Copilot fikse dette?</h2>
+          <button className="modal-close" onClick={onClose} aria-label="Lukk dialog">✕</button>
         </div>
 
         {status === 'idle' && (

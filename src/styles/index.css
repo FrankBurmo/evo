@@ -29,6 +29,8 @@
 @import './components/panel-shared.css';
 @import './components/configurable-panel.css';
 @import './components/scan-control.css';
+@import './components/toast.css';
+@import './components/skeleton.css';
 
 /* ─── Responsive ─────────────────────────────────────────────────────── */
 @import './responsive.css';

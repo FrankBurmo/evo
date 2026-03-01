@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Dashboard from './components/Dashboard';
+import ErrorBoundary from './components/ErrorBoundary';
+import { ToastProvider } from './components/Toast';
 
 function App() {
   const [token, setToken] = useState('');
@@ -49,7 +51,13 @@ function App() {
   };
 
   if (isAuthenticated) {
-    return <Dashboard token={token} onLogout={handleLogout} />;
+    return (
+      <ErrorBoundary>
+        <ToastProvider>
+          <Dashboard token={token} onLogout={handleLogout} />
+        </ToastProvider>
+      </ErrorBoundary>
+    );
   }
 
   return (
@@ -65,13 +73,15 @@ function App() {
         <p className="auth-subtitle">Skriv inn ditt Personal Access Token for å starte</p>
         <form onSubmit={handleLogin}>
           <div className="input-group">
-            <label>GitHub Token</label>
+            <label htmlFor="github-token-input">GitHub Token</label>
             <input
+              id="github-token-input"
               type="password"
               placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
               value={token}
               onChange={(e) => setToken(e.target.value)}
               disabled={isLoading}
+              autoComplete="off"
             />
           </div>
           <button type="submit" disabled={isLoading}>
@@ -79,7 +89,7 @@ function App() {
           </button>
         </form>
 
-        {error && <div className="error" style={{ marginTop: '14px', padding: '12px 14px', fontSize: '0.87rem' }}>{error}</div>}
+        {error && <div className="error" role="alert" style={{ marginTop: '14px', padding: '12px 14px', fontSize: '0.87rem' }}>{error}</div>}
 
         <div className="info">
           <strong>Trenger du hjelp?</strong>

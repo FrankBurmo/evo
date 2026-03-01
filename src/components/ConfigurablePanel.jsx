@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import useLocalStorage from '../hooks/useLocalStorage';
 
 /**
  * ConfigurablePanel — generisk panel-komponent som erstatter
@@ -32,13 +33,13 @@ function ConfigurablePanel({
   triggerBtnLabel = '🚀 Kjør analyse',
   hasActionSelect = false,
 }) {
+  const [savedConfig, setSavedConfig] = useLocalStorage(storageKey, null);
+
   const [items, setItems] = useState(() => {
-    const saved = localStorage.getItem(storageKey);
-    if (saved) {
-      const parsed = JSON.parse(saved);
+    if (savedConfig) {
       return defaultItems.map(item => ({
         ...item,
-        enabled: parsed[item.id] !== undefined ? parsed[item.id] : item.defaultEnabled,
+        enabled: savedConfig[item.id] !== undefined ? savedConfig[item.id] : item.defaultEnabled,
       }));
     }
     return defaultItems.map(item => ({ ...item, enabled: item.defaultEnabled }));
@@ -57,7 +58,7 @@ function ConfigurablePanel({
       );
       const config = {};
       updated.forEach(item => { config[item.id] = item.enabled; });
-      localStorage.setItem(storageKey, JSON.stringify(config));
+      setSavedConfig(config);
       return updated;
     });
   };
@@ -111,21 +112,27 @@ function ConfigurablePanel({
     : selectedRepo;
 
   const prefix = colorScheme.cssPrefix;
+  const panelId = `panel-${storageKey}`;
 
   return (
     <div className={`panel panel--${prefix}`}>
-      <div className="panel__header" onClick={() => setIsExpanded(!isExpanded)}>
-        <div className="panel__header-left">
-          <h3 className="panel__title">{title}</h3>
+      <button
+        className="panel__header"
+        onClick={() => setIsExpanded(!isExpanded)}
+        aria-expanded={isExpanded}
+        aria-controls={panelId}
+      >
+        <span className="panel__header-left">
+          <span className="panel__title">{title}</span>
           <span className="panel__badge">{enabledCount}/{items.length} aktive</span>
-        </div>
-        <button className="panel__toggle-btn">
+        </span>
+        <span className="panel__toggle-icon" aria-hidden="true">
           {isExpanded ? '▲' : '▼'}
-        </button>
-      </div>
+        </span>
+      </button>
 
       {isExpanded && (
-        <div className="panel__content">
+        <div className="panel__content" id={panelId} role="region">
           <p className="panel__description">{description}</p>
 
           <div className="panel__list">

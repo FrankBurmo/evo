@@ -21,10 +21,22 @@
   cursor: pointer;
   user-select: none;
   transition: background 0.15s;
+  /* button reset for accordion pattern */
+  background: none;
+  border: none;
+  width: 100%;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
 }
 
 .scan-panel .panel-header:hover {
   background: rgba(255, 255, 255, 0.025);
+}
+
+.scan-panel .panel-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
 }
 
 .scan-panel .panel-header-left {
@@ -33,12 +45,13 @@
   gap: 12px;
 }
 
-.scan-panel .panel-header-left h2 {
+.scan-panel .panel-header-left h2,\n.scan-panel .panel-header-title {
   color: var(--accent);
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+  display: block;
 }
 
 .scan-panel .panel-subtitle {

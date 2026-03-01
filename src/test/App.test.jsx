@@ -52,8 +52,9 @@ describe('App', () => {
     });
 
     render(<App />);
-    // Når token finnes, bør Dashboard vises (laster-tilstanden)
-    expect(screen.getByText('Laster repositories...')).toBeInTheDocument();
+    // Når token finnes, bør Dashboard vises (skeleton-laster-tilstanden)
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByLabelText('Laster repositories')).toBeInTheDocument();
   });
 
   it('logget inn → viser Dashboard etter vellykket autentisering', async () => {

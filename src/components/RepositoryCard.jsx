@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import AgentModal from './AgentModal';
 
 const PROJECT_TYPE_LABELS = {
@@ -16,22 +16,23 @@ function formatBytes(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function RepositoryCard({ repoData, token }) {
+/** Formater dato relativt til nå — definert utenfor komponenten for å unngå re-opprettelse. */
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'I dag';
+  if (diffDays === 1) return 'I går';
+  if (diffDays < 30) return `${diffDays} dager siden`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)} måneder siden`;
+  return `${Math.floor(diffDays / 365)} år siden`;
+}
+
+const RepositoryCard = memo(function RepositoryCard({ repoData, token }) {
   const { repo, insights, deepInsights, recommendations } = repoData;
   const [selectedRec, setSelectedRec] = useState(null);
   const [showCodeInsights, setShowCodeInsights] = useState(false);
-
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'I dag';
-    if (diffDays === 1) return 'I går';
-    if (diffDays < 30) return `${diffDays} dager siden`;
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} måneder siden`;
-    return `${Math.floor(diffDays / 365)} år siden`;
-  };
 
   const metrics = deepInsights?.fileTreeMetrics;
 
@@ -66,13 +67,14 @@ function RepositoryCard({ repoData, token }) {
       {/* Kodestruktur-innsikt */}
       {metrics && (
         <div className="code-insights">
-          <div
+          <button
             className="code-insights-toggle"
             onClick={() => setShowCodeInsights(!showCodeInsights)}
+            aria-expanded={showCodeInsights}
           >
-            <h4>📊 Kodestruktur</h4>
-            <span className="toggle-icon">{showCodeInsights ? '▲' : '▼'}</span>
-          </div>
+            <span className="code-insights-label">📊 Kodestruktur</span>
+            <span className="toggle-icon" aria-hidden="true">{showCodeInsights ? '▲' : '▼'}</span>
+          </button>
 
           <div className="code-insights-summary">
             <span title="Kodefiler">{metrics.byCategory.code} kodefiler</span>
@@ -159,31 +161,33 @@ function RepositoryCard({ repoData, token }) {
       <div className="recommendations">
         <h4>💡 Anbefalinger ({recommendations.length})</h4>
         {recommendations.map((rec, index) => (
-          <div
+          <button
             key={index}
+            type="button"
             className={`recommendation priority-${rec.priority} recommendation-clickable`}
             onClick={() => rec.priority !== 'info' && setSelectedRec(rec)}
             title={rec.priority !== 'info' ? 'Klikk for å la Copilot fikse dette' : ''}
+            disabled={rec.priority === 'info'}
           >
-            <div className="rec-header">
+            <span className="rec-header">
               <span className="rec-title">
                 {rec.source === 'ai' && <span className="rec-ai-badge">KI</span>}
                 {rec.title}
               </span>
-              <div className="rec-header-right">
+              <span className="rec-header-right">
                 <span className="rec-priority">{rec.priority}</span>
                 {rec.priority !== 'info' && (
                   <span className="rec-agent-hint">🤖 Fix med Copilot</span>
                 )}
-              </div>
-            </div>
-            <div className="rec-description">{rec.description}</div>
+              </span>
+            </span>
+            <span className="rec-description">{rec.description}</span>
             {rec.marketOpportunity && (
-              <div className="rec-opportunity">
+              <span className="rec-opportunity">
                 💼 Markedsmulighet: {rec.marketOpportunity}
-              </div>
+              </span>
             )}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -197,6 +201,6 @@ function RepositoryCard({ repoData, token }) {
       )}
     </div>
   );
-}
+});
 
 export default RepositoryCard;

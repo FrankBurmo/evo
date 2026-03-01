@@ -4,16 +4,23 @@ import React from 'react';
  * ScanProgress — fremdriftsindikator under pågående skanning.
  */
 function ScanProgress({ progress }) {
+  const percentage = progress.total > 0
+    ? Math.round((progress.current / progress.total) * 100)
+    : 0;
+
   return (
     <div className="scan-progress">
-      <div className="scan-progress-bar">
+      <div
+        className="scan-progress-bar"
+        role="progressbar"
+        aria-valuenow={progress.current}
+        aria-valuemin={0}
+        aria-valuemax={progress.total}
+        aria-label={`Skanning: ${percentage}% fullført`}
+      >
         <div
           className="scan-progress-fill"
-          style={{
-            width: progress.total > 0
-              ? `${(progress.current / progress.total) * 100}%`
-              : '0%',
-          }}
+          style={{ width: `${percentage}%` }}
         />
       </div>
       <p className="scan-progress-text">

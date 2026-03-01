@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Header from './Header';
 import RepositoryCard from './RepositoryCard';
+import SkeletonCard from './SkeletonCard';
 import ConfigurablePanel from './ConfigurablePanel';
 import {
   GUARDRAILS_CONFIG,
@@ -10,18 +12,16 @@ import ScanControl from './ScanControl';
 
 function Dashboard({ token, onLogout }) {
   const [repos, setRepos] = useState([]);
-  const [filteredRepos, setFilteredRepos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState('asc');
 
   useEffect(() => {
     fetchRepositories();
   }, []);
-
-  useEffect(() => {
-    applyFilter();
-  }, [repos, filter]);
 
   const fetchRepositories = async () => {
     setIsLoading(true);
@@ -47,54 +47,82 @@ function Dashboard({ token, onLogout }) {
     }
   };
 
-  const applyFilter = () => {
-    if (filter === 'all') {
-      setFilteredRepos(repos);
-    } else if (filter === 'market-opportunities') {
-      // Filter repos that have market opportunity recommendations
-      setFilteredRepos(repos.filter(repo => 
-        repo.recommendations.some(rec => rec.marketOpportunity)
-      ));
-    } else if (filter === 'needs-attention') {
-      // Filter repos with high priority recommendations
-      setFilteredRepos(repos.filter(repo => 
-        repo.recommendations.some(rec => rec.priority === 'high')
-      ));
-    } else if (filter === 'active') {
-      // Filter repos with recent activity
-      setFilteredRepos(repos.filter(repo => repo.insights?.recentActivity));
-    } else if (filter === 'inactive') {
-      // Filter repos without recent activity
-      setFilteredRepos(repos.filter(repo => !repo.insights?.recentActivity));
-    }
-  };
-
-  const calculateStats = () => {
+  const stats = useMemo(() => {
     const totalRepos = repos.length;
     const activeRepos = repos.filter(r => r.insights?.recentActivity).length;
     const totalStars = repos.reduce((sum, r) => sum + (r.repo.stars || 0), 0);
-    const needsAttention = repos.filter(r => 
+    const needsAttention = repos.filter(r =>
       r.recommendations.some(rec => rec.priority === 'high')
     ).length;
-
     return { totalRepos, activeRepos, totalStars, needsAttention };
-  };
+  }, [repos]);
+
+  const filteredRepos = useMemo(() => {
+    let result = repos;
+
+    // Kategorifilter
+    if (filter === 'market-opportunities') {
+      result = result.filter(repo =>
+        repo.recommendations.some(rec => rec.marketOpportunity)
+      );
+    } else if (filter === 'needs-attention') {
+      result = result.filter(repo =>
+        repo.recommendations.some(rec => rec.priority === 'high')
+      );
+    } else if (filter === 'active') {
+      result = result.filter(repo => repo.insights?.recentActivity);
+    } else if (filter === 'inactive') {
+      result = result.filter(repo => !repo.insights?.recentActivity);
+    }
+
+    // Søk
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(repo =>
+        repo.repo.name.toLowerCase().includes(q) ||
+        repo.repo.fullName.toLowerCase().includes(q) ||
+        (repo.repo.description || '').toLowerCase().includes(q)
+      );
+    }
+
+    // Sortering
+    result = [...result].sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'stars':
+          cmp = (a.repo.stars || 0) - (b.repo.stars || 0);
+          break;
+        case 'updated':
+          cmp = new Date(a.repo.updatedAt) - new Date(b.repo.updatedAt);
+          break;
+        case 'priority': {
+          const score = (r) => r.recommendations.filter(rec => rec.priority === 'high').length;
+          cmp = score(a) - score(b);
+          break;
+        }
+        case 'name':
+        default:
+          cmp = a.repo.name.localeCompare(b.repo.name);
+          break;
+      }
+      return sortOrder === 'desc' ? -cmp : cmp;
+    });
+
+    return result;
+  }, [repos, filter, searchQuery, sortBy, sortOrder]);
+
+  const toggleSortOrder = useCallback(() => {
+    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+  }, []);
 
   if (isLoading) {
     return (
       <div className="app">
-        <div className="header">
-          <div className="header-brand">
-            <div className="header-logo">⚡</div>
-            <div className="header-title">
-              <h1>Evo</h1>
-              <p>Produktene dine vokser kontinuerlig – automatisk.</p>
-            </div>
-          </div>
-        </div>
-        <div className="loading">
-          Laster repositories...
-          <div className="loading-bar" />
+        <Header />
+        <div className="repos-grid" aria-busy="true" aria-label="Laster repositories">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
         </div>
       </div>
     );
@@ -103,57 +131,21 @@ function Dashboard({ token, onLogout }) {
   if (error) {
     return (
       <div className="app">
-        <div className="header">
-          <div className="header-brand">
-            <div className="header-logo">⚡</div>
-            <div className="header-title">
-              <h1>Evo</h1>
-              <p>Produktene dine vokser kontinuerlig – automatisk.</p>
-            </div>
-          </div>
-        </div>
-        <div className="error" style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <Header />
+        <div className="error" role="alert" style={{ maxWidth: '600px', margin: '0 auto' }}>
           <h3 style={{ marginBottom: '8px', fontSize: '1rem' }}>Feil oppstod</h3>
           <p style={{ fontSize: '0.88rem' }}>{error}</p>
-          <button onClick={onLogout} style={{ marginTop: '14px', padding: '8px 16px', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '6px', color: 'inherit', cursor: 'pointer', fontSize: '0.87rem' }}>Logg ut</button>
+          <button onClick={onLogout} className="btn-secondary" style={{ marginTop: '14px' }}>
+            Logg ut
+          </button>
         </div>
       </div>
     );
   }
 
-  const stats = calculateStats();
-
   return (
     <div className="app">
-      <div className="header">
-        <div className="header-brand">
-          <div className="header-logo">⚡</div>
-          <div className="header-title">
-            <h1>Evo</h1>
-            <p>Produktene dine vokser kontinuerlig – automatisk.</p>
-          </div>
-        </div>
-        <div className="header-actions">
-          <span className="status-dot">live</span>
-          <button
-            onClick={onLogout}
-            style={{
-              padding: '7px 16px',
-              background: 'rgba(255,255,255,0.06)',
-              color: 'rgba(255,255,255,0.6)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.82rem',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background='rgba(255,255,255,0.1)'; e.currentTarget.style.color='rgba(255,255,255,0.9)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background='rgba(255,255,255,0.06)'; e.currentTarget.style.color='rgba(255,255,255,0.6)'; }}
-          >
-            Logg ut
-          </button>
-        </div>
-      </div>
+      <Header onLogout={onLogout} showActions />
 
       <div className="stats">
         <div className="stat-item">
@@ -184,38 +176,84 @@ function Dashboard({ token, onLogout }) {
 
       <div className="filters">
         <h3>Filtrer repositories</h3>
-        <div className="filter-options">
-          <div 
-            className={`filter-option ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            Alle ({repos.length})
+        <div className="filter-controls">
+          <div className="filter-options" role="group" aria-label="Filtrer etter kategori">
+            <button
+              className={`filter-option ${filter === 'all' ? 'active' : ''}`}
+              onClick={() => setFilter('all')}
+              aria-pressed={filter === 'all'}
+            >
+              Alle ({repos.length})
+            </button>
+            <button
+              className={`filter-option ${filter === 'market-opportunities' ? 'active' : ''}`}
+              onClick={() => setFilter('market-opportunities')}
+              aria-pressed={filter === 'market-opportunities'}
+            >
+              💡 Markedsmuligheter
+            </button>
+            <button
+              className={`filter-option ${filter === 'needs-attention' ? 'active' : ''}`}
+              onClick={() => setFilter('needs-attention')}
+              aria-pressed={filter === 'needs-attention'}
+            >
+              ⚠️ Trenger oppmerksomhet
+            </button>
+            <button
+              className={`filter-option ${filter === 'active' ? 'active' : ''}`}
+              onClick={() => setFilter('active')}
+              aria-pressed={filter === 'active'}
+            >
+              ✅ Aktive
+            </button>
+            <button
+              className={`filter-option ${filter === 'inactive' ? 'active' : ''}`}
+              onClick={() => setFilter('inactive')}
+              aria-pressed={filter === 'inactive'}
+            >
+              💤 Inaktive
+            </button>
           </div>
-          <div 
-            className={`filter-option ${filter === 'market-opportunities' ? 'active' : ''}`}
-            onClick={() => setFilter('market-opportunities')}
-          >
-            💡 Markedsmuligheter
-          </div>
-          <div 
-            className={`filter-option ${filter === 'needs-attention' ? 'active' : ''}`}
-            onClick={() => setFilter('needs-attention')}
-          >
-            ⚠️ Trenger oppmerksomhet
-          </div>
-          <div 
-            className={`filter-option ${filter === 'active' ? 'active' : ''}`}
-            onClick={() => setFilter('active')}
-          >
-            ✅ Aktive
-          </div>
-          <div 
-            className={`filter-option ${filter === 'inactive' ? 'active' : ''}`}
-            onClick={() => setFilter('inactive')}
-          >
-            💤 Inaktive
+          <div className="filter-search-sort">
+            <div className="filter-search">
+              <label htmlFor="repo-search" className="sr-only">Søk i repositories</label>
+              <input
+                id="repo-search"
+                type="search"
+                className="filter-search-input"
+                placeholder="🔍 Søk etter navn..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div className="filter-sort">
+              <label htmlFor="repo-sort" className="sr-only">Sorter etter</label>
+              <select
+                id="repo-sort"
+                className="filter-sort-select"
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+              >
+                <option value="name">Navn</option>
+                <option value="stars">Stjerner</option>
+                <option value="updated">Sist oppdatert</option>
+                <option value="priority">Prioritet</option>
+              </select>
+              <button
+                className="filter-sort-order"
+                onClick={toggleSortOrder}
+                aria-label={sortOrder === 'asc' ? 'Stigende rekkefølge' : 'Synkende rekkefølge'}
+                title={sortOrder === 'asc' ? 'Stigende' : 'Synkende'}
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </button>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div aria-live="polite" className="sr-only">
+        {filteredRepos.length} repositories funnet
       </div>
 
       {filteredRepos.length === 0 ? (
