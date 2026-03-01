@@ -1,6 +1,6 @@
 # Evo – Utviklingsplan 🚀
 
-> **Sist oppdatert:** 28. februar 2026
+> **Sist oppdatert:** 1. mars 2026
 
 ## Visjon
 
@@ -15,10 +15,11 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 ### Hva er ferdig ✅
 
 - **Fase 1–5 komplett:** Dyp repoanalyse, KI-analyse (Copilot Models API), automatisk issue-opprettelse, scan-orkestrering i UI, schedulert kjøring via GitHub Actions
-- **Web-dashboard** med 3 analysepaneler (11 AI-agenter), filtrering, statistikk, AgentModal, ScanControl
+- **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
-- **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL
-- **Tester:** Vitest for frontend + backend + CLI (~74 tester)
+- **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
+- **Delt kjernepakke** `packages/core/` med `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK` — eliminerer ~270 LOC duplisering mellom CLI og server
+- **Tester:** Vitest for frontend + backend + CLI (~106 tester)
 - **CI/CD:** GitHub Pages deploy + proaktiv skanning via GitHub Actions
 - **Dokumentasjon:** strategy.md, README, plan.md, copilot-instructions.md
 
@@ -27,11 +28,11 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 Basert på en grundig gjennomgang av hele kodebasen (februar 2026) er følgende de viktigste forbedringspunktene:
 
 **Arkitektur og kodekvalitet:**
-- Massiv kodeduplisering: 3 nesten identiske panelkomponenter (~600 LOC), 3 identiske CSS-filer (~480 LOC), duplisert analyselogikk mellom CLI og server (~270 LOC)
-- `analyzer.js` (1032 linjer) og `templates.js` (635 linjer) er for store og bør splittes
+- ~~Massiv kodeduplisering: 3 nesten identiske panelkomponenter (~600 LOC), 3 identiske CSS-filer (~480 LOC), duplisert analyselogikk mellom CLI og server (~270 LOC)~~ ✅ Løst — se Fase B
+- `analyzer.js` (nå kortere) og `templates.js` (635 linjer) kan fortsatt splittes
 - `ScanControl.jsx` er 526 linjer uten oppsplitting
-- Duplisert issue-opprettelseslogikk i `routes/issues.js` (4 nesten like rutehandlere)
-- Manglende service-lag — forretningslogikk ligger direkte i Express-routes
+- ~~Duplisert issue-opprettelseslogikk i `routes/issues.js` (4 nesten like rutehandlere)~~ ✅ Løst — `issue-service.js` service-lag
+- ~~Manglende service-lag — forretningslogikk ligger direkte i Express-routes~~ ✅ Delvis løst — `server/services/issue-service.js` opprettet
 
 **Sikkerhet:**
 - Ingen `helmet()`-middleware for sikre HTTP-headers
@@ -220,24 +221,25 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 **Oppgaver:**
 
-#### B1. Delt pakke `packages/core/`
-- [ ] Opprett `packages/core/` med delt logikk brukt av både CLI og server
-- [ ] Flytt `analyzeRepository()`, `detectProjectType()`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK` til core
+#### B1. Delt pakke `packages/core/` ✅
+- [x] Opprett `packages/core/` med delt logikk brukt av både CLI og server
+- [x] Flytt `analyzeRepository()`, `detectProjectType()`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK` til core
 - [ ] Flytt rate limiter-klassen til core (CLI mangler denne helt)
-- [ ] Oppdater CLI og server til å importere fra `packages/core/`
-- [ ] **Estimert eliminering:** ~270 LOC duplisering
+- [x] Oppdater CLI og server til å importere fra `packages/core/`
+- [x] **Eliminert:** ~270 LOC duplisering — `packages/core/index.js` eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`
 
-#### B2. Generisk `<ConfigurablePanel>`-komponent
-- [ ] Lag én felles React-komponent som erstatter `GuardrailsPanel`, `ProductDevelopmentPanel` og `EngineeringVelocityPanel`
-- [ ] Parametrisér: `title`, `items`, `storageKey`, `apiPrefix`, `cssPrefix`, `colorScheme`
-- [ ] Slå sammen CSS til én `panel.css` med CSS custom properties for fargevarianter
-- [ ] **Estimert eliminering:** ~600 LOC JSX + ~320 LOC CSS
+#### B2. Generisk `<ConfigurablePanel>`-komponent ✅
+- [x] Lag én felles React-komponent som erstatter `GuardrailsPanel`, `ProductDevelopmentPanel` og `EngineeringVelocityPanel`
+- [x] Parametrisér: `title`, `items`, `storageKey`, `apiPrefix`, `cssPrefix`, `colorScheme`
+- [x] Slå sammen CSS til én `configurable-panel.css` med fargeskjema-varianter (`--guardrails`, `--productdev`, `--engvelocity`)
+- [x] **Eliminert:** ~920 LOC JSX + ~480 LOC CSS — erstattet av `ConfigurablePanel.jsx` (~220 LOC) + `panelConfigs.js` + `configurable-panel.css`
+- [x] Slettet: `GuardrailsPanel.jsx`, `ProductDevelopmentPanel.jsx`, `EngineeringVelocityPanel.jsx`, `guardrails.css`, `product-dev.css`, `eng-velocity.css`
 
-#### B3. Service-lag i backend
-- [ ] Opprett `server/services/issue-service.js` — felles `createIssueAndAssign()`-funksjon
+#### B3. Service-lag i backend ✅ (delvis)
+- [x] Opprett `server/services/issue-service.js` — felles `createTemplateIssue()` + `validateIssueRequest()`
+- [x] Refaktorer `routes/issues.js` til å bruke service-laget — 3 av 4 rutehandlere bruker nå felles service
 - [ ] Opprett `server/services/scan-service.js` — flytt scan-logikk ut fra routes
 - [ ] Opprett `server/services/analysis-service.js` — AI-merge og dedup-logikk (duplisert i 3 filer)
-- [ ] Refaktorer `routes/issues.js` til å bruke service-laget (fjerner 4 nesten like rutehandlere)
 
 #### B4. Splitt store filer
 - [ ] `server/analyzer.js` (1032 linjer) → splitt i `project-detector.js`, `file-analyzer.js`, `recommendation-engine.js`
@@ -245,9 +247,9 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - [ ] `ScanControl.jsx` (526 linjer) → splitt i `ScanOptions`, `ScanProgress`, `ScanResults`, `ScanRepoItem`
 - [ ] `buildScanIssueBody` og `buildScanIssueBodyCompact` → refaktorér til én funksjon med `compact`-parameter
 
-#### B5. Fjern død kode
-- [ ] `detectTests()` i analyzer.js — erstattet av `detectTestsFromTree`, aldri kalt
-- [ ] `queue`/`processing`-felter i RateLimiter — deklarert men aldri brukt
+#### B5. Fjern død kode ✅ (delvis)
+- [x] `detectTests()` i analyzer.js — fjernet (erstattet av `detectTestsFromTree`)
+- [x] `queue`/`processing`-felter i RateLimiter — fjernet fra `copilot-client.js`
 - [ ] Redundant fallback-logikk i `fetchRepoTree()` — `default_branch` er allerede tilgjengelig
 
 **Estimat:** 4–5 dager | **Risiko:** Middels (regresjoner ved refaktorering)
@@ -420,11 +422,11 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 | G1 | Fiks `vite.config.js` base-path | G | 🟢 Lett | ❌ | 0.5t |
 | G2 | Oppdater package.json URLs | G | 🟢 Lett | ❌ | 0.5t |
 | G3 | Helsesjekk-melding → Evo | G | 🟢 Lett | ❌ | 0.5t |
-| B1 | `packages/core/` delt pakke | B | 🟠 Høy | ❌ | 4t |
-| B2 | `<ConfigurablePanel>` komponent | B | 🟠 Høy | ❌ | 4t |
-| B3 | Service-lag i backend | B | 🟠 Høy | ❌ | 6t |
+| B1 | `packages/core/` delt pakke | B | 🟠 Høy | ✅ (delvis — rate limiter gjenstår) | 4t |
+| B2 | `<ConfigurablePanel>` komponent | B | 🟠 Høy | ✅ | 4t |
+| B3 | Service-lag i backend | B | 🟠 Høy | ✅ (delvis — scan/analysis gjenstår) | 6t |
 | B4 | Splitt store filer | B | 🟠 Høy | ❌ | 4t |
-| B5 | Fjern død kode | B | 🟠 Høy | ❌ | 1t |
+| B5 | Fjern død kode | B | 🟠 Høy | ✅ (delvis — fetchRepoTree gjenstår) | 1t |
 | C1 | A11y-fikser (kritiske) | C | 🟡 Middels | ❌ | 3t |
 | C2 | Performance-fikser | C | 🟡 Middels | ❌ | 2t |
 | C3 | UX-forbedringer | C | 🟡 Middels | ❌ | 4t |
@@ -447,7 +449,7 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 ## Ferdigstilte faser (historikk)
 
 <details>
-<summary>Klikk for å se fullført arbeid fra fase 1–5</summary>
+<summary>Klikk for å se fullført arbeid fra fase 1–5 og fase B (mars 2026)</summary>
 
 ### Fase 1: Dyp repoanalyse med GitHub API — ✅ Ferdig
 - Regelbasert analyse i backend og CLI
@@ -479,6 +481,15 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - Distribusjonsstrategi (7 modeller)
 - GitHub Pages deployment
 - Rebranding fra «Product Orchestrator» til «Evo»
+
+### Fase B (delvis): Kodeduplisering og arkitektur-refaktorering — ✅ Delvis ferdig (1. mars 2026)
+- `packages/core/index.js` opprettet: eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`
+- `server/analyzer.js` og `packages/cli/src/analyzer.js` importerer nå fra core — ~270 LOC duplisering fjernet
+- `ConfigurablePanel.jsx` + `panelConfigs.js` + `configurable-panel.css` erstatter 3 identiske panelkomponenter — ~1400 LOC fjernet
+- `server/services/issue-service.js` opprettet med `createTemplateIssue()` + `validateIssueRequest()` — `routes/issues.js` refaktorert
+- Død kode fjernet: `detectTests()`, `queue`/`processing`-felter i RateLimiter
+- Alle 106 tester passerer etter refaktorering
+- Gjenstår: rate limiter til core, `scan-service.js`, `analysis-service.js`, splitt av store filer
 
 </details>
 
@@ -513,15 +524,16 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ```
 packages/
-  core/           ← NY: Delt analyselogikk, typer, rate limiter
-  cli/            ← Importerer fra core
+  core/           ← ✅ FERDIG: analyzeRepository, detectProjectTypeFromMetadata, PROJECT_TYPE_LABELS, PRIORITY_RANK
+  cli/            ← ✅ Importerer fra core
 server/
-  services/       ← NY: Service-lag (issue, scan, analysis)
-  routes/         ← Tynn HTTP-adapter over services
+  services/       ← ✅ issue-service.js ferdig — scan-service.js og analysis-service.js gjenstår
+  routes/         ← ✅ issues.js bruker nå service-laget
 src/
   components/
-    ConfigurablePanel.jsx  ← NY: Erstatter 3 dupliserte paneler
-    ScanControl/           ← NY: Splittet i delkomponenter
+    ConfigurablePanel.jsx  ← ✅ FERDIG: erstatter GuardrailsPanel, ProductDevelopmentPanel, EngineeringVelocityPanel
+    panelConfigs.js        ← ✅ FERDIG: datakonfigurasjon for alle 3 paneltyper
+    ScanControl/           ← Gjenstår: splittes i delkomponenter
 ```
 
 ---
