@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 function AgentModal({ recommendation, repo, token, onClose }) {
   const [status, setStatus] = useState('idle'); // idle | loading | success | error
@@ -82,7 +83,7 @@ function AgentModal({ recommendation, repo, token, onClose }) {
     }
   };
 
-  return (
+  const content = (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div
         className="modal"
@@ -178,6 +179,8 @@ function AgentModal({ recommendation, repo, token, onClose }) {
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }
 
 export default AgentModal;

@@ -136,14 +136,17 @@
 .recommendation .rec-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 5px;
+  gap: 8px;
 }
 
 .recommendation .rec-title {
   font-weight: 600;
   font-size: 0.87rem;
   color: var(--text-primary);
+  flex: 1;
+  min-width: 0;
 }
 
 .recommendation .rec-priority {
@@ -221,7 +224,8 @@
 .rec-header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .rec-agent-hint {
