@@ -23,13 +23,13 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/FrankBurmo/product-orchestrator.git",
+    "url": "git+https://github.com/FrankBurmo/evo.git",
     "directory": "packages/cli"
   },
   "bugs": {
-    "url": "https://github.com/FrankBurmo/product-orchestrator/issues"
+    "url": "https://github.com/FrankBurmo/evo/issues"
   },
-  "homepage": "https://github.com/FrankBurmo/product-orchestrator/tree/main/packages/cli#readme",
+  "homepage": "https://github.com/FrankBurmo/evo/tree/main/packages/cli#readme",
   "engines": {
     "node": ">=18.0.0"
   },

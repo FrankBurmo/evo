@@ -25,7 +25,7 @@ app.use('/api/', limiter);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Product Orchestrator API is running' });
+  res.json({ status: 'ok', message: 'Evo API is running' });
 });
 
 // Mount route modules
@@ -34,6 +34,6 @@ app.use('/api', issuesRoutes);
 app.use('/api', scanRoutes);
 
 app.listen(port, () => {
-  console.log(`Product Orchestrator API running on port ${port}`);
+  console.log(`Evo API running on port ${port}`);
   console.log(`Visit http://localhost:${port}/api/health to check status`);
 });

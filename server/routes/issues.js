@@ -32,30 +32,30 @@ router.post('/create-agent-issue', async (req, res) => {
   const octokit = getOctokit(token);
 
   const issueTitle = `[Copilot Agent] ${recommendation.title}`;
-  const issueBody = `## 🤖 Copilot Agent Task
+  const issueBody = `## 🤖 Copilot Agent-oppgave
 
-This issue was automatically created by **Product Orchestrator** and assigned to Copilot for automated resolution.
+Dette issuet ble automatisk opprettet av **Evo** og tildelt Copilot for automatisert løsning.
 
 ---
 
-### 📋 Problem Description
+### 📋 Problembeskrivelse
 
 **${recommendation.title}**
 
 ${recommendation.description}
 
-${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendation.marketOpportunity}\n` : ''}
+${recommendation.marketOpportunity ? `### 💼 Forretningsverdi\n\n${recommendation.marketOpportunity}\n` : ''}
 ---
 
-### ✅ Acceptance Criteria
+### ✅ Akseptansekriterier
 
-- [ ] The issue described above is resolved
-- [ ] Changes are tested and working
-- [ ] A pull request is submitted with the fix
+- [ ] Problemet beskrevet over er løst
+- [ ] Endringen er testet
+- [ ] En pull request er opprettet med løsningen
 
 ---
 
-*This issue was created automatically by [Product Orchestrator](https://github.com). Priority: \`${recommendation.priority}\`*
+*Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Prioritet: \`${recommendation.priority}\`*
 `;
 
   // Create issue

@@ -15,52 +15,12 @@
  *   createCopilotClient(options)  — opprett en rate-limited klient-instans
  */
 
+const { RateLimiter } = require('../packages/core');
+
 const COPILOT_ENDPOINT = 'https://api.githubcopilot.com/inference/chat/completions';
 const DEFAULT_MODEL = process.env.COPILOT_MODEL || 'openai/gpt-4.1';
 
-// ─── Rate Limiter (Token Bucket) ─────────────────────────────────────────────
-
-/**
- * Enkel token-bucket rate limiter for å respektere Copilot Models API-kvoten.
- * Standard: maks 10 forespørsler per minutt, med burst opp til 3.
- */
-class RateLimiter {
-  constructor({ maxPerMinute = 10, burstSize = 3 } = {}) {
-    this.maxPerMinute = maxPerMinute;
-    this.burstSize = burstSize;
-    this.tokens = burstSize;
-    this.maxTokens = burstSize;
-    this.lastRefill = Date.now();
-    this.refillRate = (60 * 1000) / maxPerMinute; // ms per token
-  }
-
-  _refill() {
-    const now = Date.now();
-    const elapsed = now - this.lastRefill;
-    const newTokens = Math.floor(elapsed / this.refillRate);
-    if (newTokens > 0) {
-      this.tokens = Math.min(this.maxTokens, this.tokens + newTokens);
-      this.lastRefill = now;
-    }
-  }
-
-  async acquire() {
-    return new Promise((resolve) => {
-      const tryAcquire = () => {
-        this._refill();
-        if (this.tokens > 0) {
-          this.tokens -= 1;
-          resolve();
-        } else {
-          // Vent til neste token er tilgjengelig
-          const waitTime = this.refillRate - (Date.now() - this.lastRefill);
-          setTimeout(tryAcquire, Math.max(waitTime, 100));
-        }
-      };
-      tryAcquire();
-    });
-  }
-}
+// ─── Rate Limiter ────────────────────────────────────────────────────────────
 
 // Global rate limiter — deles på tvers av alle forespørsler
 const rateLimiter = new RateLimiter({

@@ -28,8 +28,8 @@ Produktene dine vokser kontinuerlig – automatisk.
 
 1. Klon repositoryet:
 ```bash
-git clone https://github.com/FrankBurmo/product-orchestrator.git
-cd product-orchestrator
+git clone https://github.com/FrankBurmo/evo.git
+cd evo
 ```
 
 2. Installer dependencies:
@@ -78,7 +78,7 @@ For å bruke applikasjonen trenger du en GitHub Personal Access Token:
 
 1. Gå til [GitHub Settings > Tokens](https://github.com/settings/tokens/new)
 2. Klikk "Generate new token (classic)"
-3. Gi tokenet et navn (f.eks. "Product Orchestrator")
+3. Gi tokenet et navn (f.eks. "Evo")
 4. Velg scope: `repo` (for å lese repositories)
 5. Klikk "Generate token"
 6. Kopier tokenet (du ser det bare én gang!)

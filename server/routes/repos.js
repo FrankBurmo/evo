@@ -9,7 +9,7 @@
 const express = require('express');
 const { getOctokit, extractToken } = require('../github');
 const { analyzeRepository, deepAnalyzeRepo } = require('../analyzer');
-const { analyzeWithAI } = require('../copilot-client');
+const { analyzeRepoFull } = require('../services/analysis-service');
 
 const router = express.Router();
 
@@ -75,35 +75,7 @@ router.get('/repo/:owner/:name/deep', async (req, res) => {
 
     const octokit = getOctokit(token);
     const { data: repo } = await octokit.repos.get({ owner, repo: name });
-    const analysis = await deepAnalyzeRepo(octokit, repo);
-
-    // KI-analyse: kombiner regelbasert + AI-drevet
-    if (useAI && token) {
-      try {
-        const existingTitles = (analysis.recommendations || []).map((r) => r.title);
-        const aiResult = await analyzeWithAI({
-          token,
-          repo: analysis.repo,
-          deepInsights: analysis.deepInsights,
-          existingRecs: existingTitles,
-        });
-
-        const existingSet = new Set(existingTitles.map((t) => t.toLowerCase()));
-        const newAIRecs = (aiResult.recommendations || []).filter(
-          (r) => !existingSet.has(r.title.toLowerCase()),
-        );
-        analysis.recommendations = [...analysis.recommendations, ...newAIRecs];
-        analysis.aiSummary = aiResult.summary;
-        analysis.aiAnalyzed = true;
-      } catch (aiError) {
-        console.warn('KI-analyse feilet, bruker kun regelbasert analyse:', aiError.message);
-        analysis.aiAnalyzed = false;
-        analysis.aiError = aiError.message;
-      }
-    } else {
-      analysis.aiAnalyzed = false;
-    }
-
+    const analysis = await analyzeRepoFull({ octokit, repo, token, options: { useAI } });
     res.json(analysis);
   } catch (error) {
     console.error('Error in deep analysis:', error);
@@ -123,30 +95,17 @@ router.post('/repo/:owner/:name/ai-analyze', async (req, res) => {
     const { model } = req.body || {};
     const octokit = getOctokit(token);
     const { data: repo } = await octokit.repos.get({ owner, repo: name });
-    const analysis = await deepAnalyzeRepo(octokit, repo);
 
-    const existingTitles = (analysis.recommendations || []).map((r) => r.title);
-    const aiResult = await analyzeWithAI({
-      token,
-      model,
-      repo: analysis.repo,
-      deepInsights: analysis.deepInsights,
-      existingRecs: existingTitles,
-    });
-
-    const existingSet = new Set(existingTitles.map((t) => t.toLowerCase()));
-    const newAIRecs = (aiResult.recommendations || []).filter(
-      (r) => !existingSet.has(r.title.toLowerCase()),
-    );
+    const analysis = await analyzeRepoFull({ octokit, repo, token, options: { useAI: true, model } });
 
     res.json({
       repo: analysis.repo,
       deepInsights: analysis.deepInsights,
-      aiSummary: aiResult.summary,
-      projectType: aiResult.projectType,
-      recommendations: [...analysis.recommendations, ...newAIRecs],
-      ruleBasedCount: analysis.recommendations.length,
-      aiCount: newAIRecs.length,
+      aiSummary: analysis.aiSummary,
+      projectType: analysis.aiProjectType,
+      recommendations: analysis.recommendations,
+      ruleBasedCount: analysis.ruleBasedCount,
+      aiCount: analysis.aiCount,
     });
   } catch (error) {
     console.error('Error in AI analysis:', error);

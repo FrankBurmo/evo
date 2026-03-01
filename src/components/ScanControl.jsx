@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import ScanOptions from './ScanOptions';
+import ScanProgress from './ScanProgress';
+import ScanResults from './ScanResults';
 
+/**
+ * ScanControl — orkestreringskomponent for proaktiv skanning.
+ *
+ * Delegerer UI til:
+ *   ScanOptions   — innstillinger og start-knapp
+ *   ScanProgress  — fremdriftsindikator
+ *   ScanResults   — oppsummering, utvalg og per-repo-resultater
+ *     └ ScanRepoItem — enkelt repo med anbefalinger
+ */
 function ScanControl({ token }) {
   const [scanStatus, setScanStatus] = useState('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0, currentRepo: null });
@@ -14,7 +26,7 @@ function ScanControl({ token }) {
   const [maxRepos, setMaxRepos] = useState(50);
 
   // Batch issue creation
-  const [batchStatus, setBatchStatus] = useState('idle'); // idle | loading | done
+  const [batchStatus, setBatchStatus] = useState('idle');
   const [batchResult, setBatchResult] = useState(null);
 
   // Selection state: { "owner/repo": Set<recIndex> }
@@ -24,7 +36,37 @@ function ScanControl({ token }) {
 
   const pollRef = useRef(null);
 
-  // Poll scan status while running
+  // ── Fetch-helpers ──────────────────────────────────────────────────────────
+
+  const fetchResults = useCallback(async () => {
+    try {
+      const res = await fetch('/api/scan/results', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setResults(data);
+
+      if (data?.results) {
+        const sel = {};
+        data.results.forEach(r => {
+          const indices = new Set();
+          r.recommendations.forEach((rec, i) => {
+            const alreadyCreated = r.issuesCreated?.find(
+              ic => ic.title === rec.title && ic.status === 'created',
+            );
+            if (!alreadyCreated) indices.add(i);
+          });
+          if (indices.size > 0) sel[r.repo.fullName] = indices;
+        });
+        setSelectedRecs(sel);
+      }
+    } catch (err) {
+      setError('Kunne ikke hente resultater: ' + err.message);
+    }
+  }, [token]);
+
+  // ── Polling ────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (scanStatus === 'running') {
       pollRef.current = setInterval(async () => {
@@ -50,38 +92,11 @@ function ScanControl({ token }) {
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [scanStatus]);
+  }, [scanStatus, token, fetchResults]);
 
-  const fetchResults = async () => {
-    try {
-      const res = await fetch('/api/scan/results', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await res.json();
-      setResults(data);
+  // ── Actions ────────────────────────────────────────────────────────────────
 
-      // Auto-select all recommendations when results arrive
-      if (data?.results) {
-        const sel = {};
-        data.results.forEach(r => {
-          const indices = new Set();
-          r.recommendations.forEach((rec, i) => {
-            // Don't pre-select already-created issues
-            const alreadyCreated = r.issuesCreated?.find(
-              ic => ic.title === rec.title && ic.status === 'created'
-            );
-            if (!alreadyCreated) indices.add(i);
-          });
-          if (indices.size > 0) sel[r.repo.fullName] = indices;
-        });
-        setSelectedRecs(sel);
-      }
-    } catch (err) {
-      setError('Kunne ikke hente resultater: ' + err.message);
-    }
-  };
-
-  const startScan = async () => {
+  const startScan = useCallback(async () => {
     setError('');
     setResults(null);
     setBatchStatus('idle');
@@ -110,13 +125,12 @@ function ScanControl({ token }) {
       setScanStatus('error');
       setError('Nettverksfeil: ' + err.message);
     }
-  };
+  }, [token, createIssues, assignCopilot, minPriority, maxRepos]);
 
-  const handleBatchCreateIssues = async () => {
+  const handleBatchCreateIssues = useCallback(async () => {
     setBatchStatus('loading');
     setBatchResult(null);
     try {
-      // Build selected items array
       const selected = [];
       if (results?.results) {
         results.results.forEach(r => {
@@ -149,16 +163,14 @@ function ScanControl({ token }) {
       if (!res.ok) throw new Error(data.error || 'Feil');
       setBatchResult(data);
       setBatchStatus('done');
-      // Refresh results to show updated issuesCreated
       fetchResults();
     } catch (err) {
       setBatchResult({ error: err.message });
       setBatchStatus('done');
     }
-  };
+  }, [token, assignCopilot, results, selectedRecs, fetchResults]);
 
-  // Create a single issue from a specific recommendation
-  const handleCreateSingleIssue = async (repoFullName, recIndex) => {
+  const handleCreateSingleIssue = useCallback(async (repoFullName, recIndex) => {
     const key = `${repoFullName}::${recIndex}`;
     setIndividualStatus(prev => ({ ...prev, [key]: 'loading' }));
     try {
@@ -176,14 +188,14 @@ function ScanControl({ token }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Feil');
       setIndividualStatus(prev => ({ ...prev, [key]: 'created' }));
-      // Refresh results
       fetchResults();
     } catch {
       setIndividualStatus(prev => ({ ...prev, [key]: 'error' }));
     }
-  };
+  }, [token, assignCopilot, fetchResults]);
 
-  // Selection helpers
+  // ── Selection helpers ──────────────────────────────────────────────────────
+
   const toggleRec = useCallback((repoFullName, recIndex) => {
     setSelectedRecs(prev => {
       const copy = { ...prev };
@@ -200,7 +212,7 @@ function ScanControl({ token }) {
       const s = new Set();
       recommendations.forEach((rec, i) => {
         const alreadyCreated = issuesCreated?.find(
-          ic => ic.title === rec.title && ic.status === 'created'
+          ic => ic.title === rec.title && ic.status === 'created',
         );
         if (!alreadyCreated) s.add(i);
       });
@@ -224,7 +236,7 @@ function ScanControl({ token }) {
       const indices = new Set();
       r.recommendations.forEach((rec, i) => {
         const alreadyCreated = r.issuesCreated?.find(
-          ic => ic.title === rec.title && ic.status === 'created'
+          ic => ic.title === rec.title && ic.status === 'created',
         );
         if (!alreadyCreated) indices.add(i);
       });
@@ -237,17 +249,13 @@ function ScanControl({ token }) {
     setSelectedRecs({});
   }, []);
 
-  // Compute selected count
   const totalSelected = useMemo(() => {
     let count = 0;
     Object.values(selectedRecs).forEach(s => { count += s.size; });
     return count;
   }, [selectedRecs]);
 
-  const totalRecs = results?.summary?.totalRecommendations || 0;
-  const issuesAlreadyCreated = results?.summary?.issuesCreated || 0;
-  const pendingRecs = totalRecs - issuesAlreadyCreated;
-  const canBatchCreate = results && totalSelected > 0 && batchStatus !== 'loading';
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="panel scan-panel">
@@ -266,255 +274,41 @@ function ScanControl({ token }) {
 
       {isExpanded && (
         <div className="panel-content">
-          {/* Options */}
-          <div className="scan-options">
-            <label className="scan-option">
-              <input
-                type="checkbox"
-                checked={createIssues}
-                onChange={e => setCreateIssues(e.target.checked)}
-              />
-              <span>Opprett issues automatisk under skanning</span>
-            </label>
-            <label className="scan-option">
-              <input
-                type="checkbox"
-                checked={assignCopilot}
-                onChange={e => setAssignCopilot(e.target.checked)}
-              />
-              <span>Tildel til Copilot-agent</span>
-            </label>
-            <div className="scan-option-row">
-              <label>
-                Min. prioritet:
-                <select value={minPriority} onChange={e => setMinPriority(e.target.value)}>
-                  <option value="low">Lav</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">Høy</option>
-                </select>
-              </label>
-              <label>
-                Maks repos:
-                <input
-                  type="number"
-                  min={1}
-                  max={200}
-                  value={maxRepos}
-                  onChange={e => setMaxRepos(Number(e.target.value))}
-                  style={{ width: '60px' }}
-                />
-              </label>
-            </div>
-          </div>
+          <ScanOptions
+            createIssues={createIssues}
+            setCreateIssues={setCreateIssues}
+            assignCopilot={assignCopilot}
+            setAssignCopilot={setAssignCopilot}
+            minPriority={minPriority}
+            setMinPriority={setMinPriority}
+            maxRepos={maxRepos}
+            setMaxRepos={setMaxRepos}
+            scanStatus={scanStatus}
+            onStart={startScan}
+          />
 
-          {/* Start button */}
-          <button
-            className="btn-primary scan-start-btn"
-            onClick={startScan}
-            disabled={scanStatus === 'running'}
-          >
-            {scanStatus === 'running' ? '⏳ Skanner...' : '🚀 Start proaktiv skanning'}
-          </button>
+          {scanStatus === 'running' && <ScanProgress progress={progress} />}
 
-          {/* Progress */}
-          {scanStatus === 'running' && (
-            <div className="scan-progress">
-              <div className="scan-progress-bar">
-                <div
-                  className="scan-progress-fill"
-                  style={{ width: progress.total > 0 ? `${(progress.current / progress.total) * 100}%` : '0%' }}
-                />
-              </div>
-              <p className="scan-progress-text">
-                {progress.current} / {progress.total} repos analysert
-                {progress.currentRepo && <span> — {progress.currentRepo}</span>}
-              </p>
-            </div>
-          )}
+          {error && <div className="scan-error">⚠️ {error}</div>}
 
-          {/* Error */}
-          {error && (
-            <div className="scan-error">
-              ⚠️ {error}
-            </div>
-          )}
-
-          {/* Results */}
           {results && scanStatus !== 'running' && (
-            <div className="scan-results">
-              <div className="scan-summary">
-                <div className="scan-summary-item">
-                  <span className="scan-summary-value">{results.summary.reposScanned}</span>
-                  <span className="scan-summary-label">Repos skannet</span>
-                </div>
-                <div className="scan-summary-item">
-                  <span className="scan-summary-value">{results.summary.totalRecommendations}</span>
-                  <span className="scan-summary-label">Anbefalinger</span>
-                </div>
-                <div className="scan-summary-item">
-                  <span className="scan-summary-value">{results.summary.issuesCreated}</span>
-                  <span className="scan-summary-label">Issues opprettet</span>
-                </div>
-                <div className="scan-summary-item">
-                  <span className="scan-summary-value">{totalSelected}</span>
-                  <span className="scan-summary-label">Valgt</span>
-                </div>
-              </div>
-
-              {/* Selection toolbar */}
-              {pendingRecs > 0 && (
-                <div className="scan-selection-toolbar">
-                  <div className="scan-selection-info">
-                    <span className="scan-selection-count">
-                      {totalSelected} av {pendingRecs} anbefaling{pendingRecs !== 1 ? 'er' : ''} valgt
-                    </span>
-                  </div>
-                  <div className="scan-selection-actions">
-                    <button className="btn-outline btn-sm" onClick={selectAll}>Velg alle</button>
-                    <button className="btn-outline btn-sm" onClick={deselectAll}>Fjern alle</button>
-                  </div>
-                </div>
-              )}
-
-              {/* Batch create issues button */}
-              {canBatchCreate && (
-                <div className="scan-batch">
-                  <button
-                    className="btn-primary"
-                    onClick={handleBatchCreateIssues}
-                    disabled={batchStatus === 'loading'}
-                  >
-                    {batchStatus === 'loading'
-                      ? '⏳ Oppretter issues...'
-                      : `📝 Opprett ${totalSelected} valgte issue${totalSelected !== 1 ? 's' : ''}`}
-                  </button>
-                  <label className="scan-option" style={{ marginTop: '6px' }}>
-                    <input
-                      type="checkbox"
-                      checked={assignCopilot}
-                      onChange={e => setAssignCopilot(e.target.checked)}
-                    />
-                    <span>Tildel til Copilot</span>
-                  </label>
-                </div>
-              )}
-
-              {batchResult && batchStatus === 'done' && (
-                <div className={batchResult.error ? 'scan-error' : 'scan-batch-result'}>
-                  {batchResult.error ? (
-                    <p>⚠️ {batchResult.error}</p>
-                  ) : (
-                    <p>
-                      ✅ {batchResult.summary.created} issues opprettet
-                      {batchResult.summary.skipped > 0 && `, ${batchResult.summary.skipped} hoppet over (duplikater)`}
-                      {batchResult.summary.errors > 0 && `, ${batchResult.summary.errors} feilet`}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Per-repo results */}
-              <div className="scan-repo-list">
-                {results.results.map((r) => {
-                  const repoSel = selectedRecs[r.repo.fullName] || new Set();
-                  const creatableRecs = r.recommendations.filter((rec) =>
-                    !r.issuesCreated?.find(ic => ic.title === rec.title && ic.status === 'created')
-                  );
-                  const allSelected = creatableRecs.length > 0 &&
-                    creatableRecs.every((_, i) => {
-                      const origIdx = r.recommendations.indexOf(creatableRecs[i]);
-                      return repoSel.has(origIdx);
-                    });
-
-                  return (
-                    <div key={r.repo.fullName} className="scan-repo-item">
-                      <div className="scan-repo-header">
-                        <a href={r.repo.url} target="_blank" rel="noopener noreferrer">
-                          {r.repo.fullName}
-                        </a>
-                        {r.repo.projectType && (
-                          <span className="scan-project-type">{r.repo.projectType}</span>
-                        )}
-                        <span className="scan-rec-count">
-                          {r.recommendations.length} anbefaling{r.recommendations.length !== 1 ? 'er' : ''}
-                        </span>
-                        {creatableRecs.length > 0 && (
-                          <button
-                            className="btn-outline btn-xs scan-repo-select-toggle"
-                            onClick={() =>
-                              allSelected
-                                ? deselectAllForRepo(r.repo.fullName)
-                                : selectAllForRepo(r.repo.fullName, r.recommendations, r.issuesCreated)
-                            }
-                          >
-                            {allSelected ? 'Fjern valg' : 'Velg alle'}
-                          </button>
-                        )}
-                      </div>
-                      {r.recommendations.length > 0 && (
-                        <ul className="scan-rec-list">
-                          {r.recommendations.map((rec, i) => {
-                            const alreadyCreated = r.issuesCreated?.find(
-                              ic => ic.title === rec.title && ic.status === 'created'
-                            );
-                            const isSelected = repoSel.has(i);
-                            const indKey = `${r.repo.fullName}::${i}`;
-                            const indStatus = individualStatus[indKey];
-
-                            return (
-                              <li
-                                key={i}
-                                className={`scan-rec priority-${rec.priority} ${isSelected ? 'scan-rec-selected' : ''} ${alreadyCreated ? 'scan-rec-created' : ''}`}
-                              >
-                                {!alreadyCreated && (
-                                  <input
-                                    type="checkbox"
-                                    className="scan-rec-checkbox"
-                                    checked={isSelected}
-                                    onChange={() => toggleRec(r.repo.fullName, i)}
-                                  />
-                                )}
-                                <span className="scan-rec-title">{rec.title}</span>
-                                <span className="rec-priority">{rec.priority}</span>
-                                {rec.type && <span className="scan-rec-type">{rec.type}</span>}
-                                {alreadyCreated ? (
-                                  <a
-                                    href={alreadyCreated.issueUrl || r.issuesCreated.find(ic => ic.title === rec.title)?.issueUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="scan-issue-link"
-                                  >
-                                    ✅ Issue
-                                  </a>
-                                ) : (
-                                  <div className="scan-rec-actions">
-                                    {indStatus === 'loading' ? (
-                                      <span className="scan-rec-status loading">⏳</span>
-                                    ) : indStatus === 'created' ? (
-                                      <span className="scan-rec-status created">✅</span>
-                                    ) : indStatus === 'error' ? (
-                                      <span className="scan-rec-status error">❌</span>
-                                    ) : (
-                                      <button
-                                        className="btn-outline btn-xs scan-create-single"
-                                        onClick={() => handleCreateSingleIssue(r.repo.fullName, i)}
-                                        title="Opprett issue for denne anbefalingen"
-                                      >
-                                        📝
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ScanResults
+              results={results}
+              selectedRecs={selectedRecs}
+              totalSelected={totalSelected}
+              individualStatus={individualStatus}
+              assignCopilot={assignCopilot}
+              setAssignCopilot={setAssignCopilot}
+              batchStatus={batchStatus}
+              batchResult={batchResult}
+              onBatchCreate={handleBatchCreateIssues}
+              onToggleRec={toggleRec}
+              onSelectAll={selectAllForRepo}
+              onDeselectAll={deselectAllForRepo}
+              onSelectAllGlobal={selectAll}
+              onDeselectAllGlobal={deselectAll}
+              onCreateSingle={handleCreateSingleIssue}
+            />
           )}
         </div>
       )}

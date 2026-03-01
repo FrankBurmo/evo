@@ -1,10 +1,10 @@
-# Copilot Instructions – Product Orchestrator
+# Copilot Instructions – Evo
 
 ## Prosjektoversikt
 
-Product Orchestrator er en **proaktiv utviklingsassistent** og orkestreringsplattform for produktutvikling. Verktøyet analyserer alle GitHub-repos en bruker eier, gir AI-drevne anbefalinger for hvert produkt, og kan automatisk opprette GitHub Issues med konkrete forbedringsforslag.
+Evo er en **proaktiv utviklingsassistent** og orkestreringsplattform for produktutvikling. Verktøyet analyserer alle GitHub-repos en bruker eier, gir AI-drevne anbefalinger for hvert produkt, og kan automatisk opprette GitHub Issues med konkrete forbedringsforslag.
 
-**GitHub-repo:** https://github.com/FrankBurmo/product-orchestrator
+**GitHub-repo:** https://github.com/FrankBurmo/evo
 
 ---
 
@@ -20,7 +20,7 @@ React + Vite (frontend)  ←→  Express (backend, port 3001)  ←→  GitHub RE
 - **Frontend:** React 19 + Vite, custom CSS (ingen CSS-rammeverk)
 - **Backend:** Node.js + Express 5, CommonJS (`require`/`module.exports`)
 - **GitHub-integrasjon:** `@octokit/rest` for alle GitHub API-kall
-- **AI-motor:** GitHub Copilot Models API (Claude Sonnet, etc) via brukerens PAT
+- **AI-motor:** GitHub Copilot Models API (GPT-4.1 etc) via brukerens PAT
 - **Autentisering:** GitHub Personal Access Token (PAT) — lagres i `localStorage`, sendes som `Authorization`-header til backend
 
 ---
@@ -28,19 +28,27 @@ React + Vite (frontend)  ←→  Express (backend, port 3001)  ←→  GitHub RE
 ## Katalogstruktur
 
 ```
-server/index.js          – Express API-server — oppsett, middleware, route-montering
-server/github.js         – Octokit-helpers: getOctokit, extractToken, assignCopilotToIssue
-server/templates.js      – Issue-body-templates for guardrails, product-dev og engineering-velocity
-server/analyzer.js       – Utvidet analysemotor — dyp repo-analyse, prosjekttype-deteksjon
-server/copilot-client.js – Copilot Models API-klient — KI-analyse med prosjekttype-prompts og rate limiting
-server/routes/repos.js   – Ruter for repo-analyse (GET /api/repos, /repo/:o/:n, /deep, /ai-analyze)
-server/routes/issues.js  – Ruter for issue-opprettelse (create-agent-issue, guardrails, product-dev, eng-velocity)
-server/routes/scan.js    – Ruter for proaktiv skanning (scan/start, scan/status, scan/results, scan/create-issues)
-src/App.jsx              – Root React-komponent, autentiseringsflyt
-src/components/          – React-komponenter (Dashboard, panels, cards, modals)
-src/styles/              – CSS-filer (base, komponenter, animasjoner, responsiv)
-public/                  – Statiske filer
-plan.md                  – Detaljert utviklingsplan og roadmap
+server/index.js               – Express API-server — oppsett, middleware, route-montering
+server/github.js              – Octokit-helpers: getOctokit, extractToken, assignCopilotToIssue
+server/analyzer.js            – Fasade-modul — re-eksporterer fra sub-moduler
+server/project-detector.js    – Prosjekttypegjenkjenning fra filstruktur
+server/file-analyzer.js       – Filtre-henting og analyse via GitHub API
+server/recommendation-engine.js – Regelbasert anbefalingsgenerering
+server/copilot-client.js      – Copilot Models API-klient — KI-analyse med prosjekttype-prompts
+server/templates/              – Issue-body-templates (guardrails, product-dev, eng-velocity, scan)
+server/routes/repos.js        – Ruter for repo-analyse (GET /api/repos, /repo/:o/:n, /deep, /ai-analyze)
+server/routes/issues.js       – Ruter for issue-opprettelse (create-agent-issue, guardrails, etc.)
+server/routes/scan.js         – Ruter for proaktiv skanning (tynn HTTP-lag)
+server/services/analysis-service.js – Felles AI-analyse-logikk (deep + AI merge)
+server/services/scan-service.js     – Scan-tilstand og kjørelogikk
+server/services/issue-service.js    – Felles issue-opprettelseshjelper
+packages/core/index.js        – @evo/core — delt kode mellom CLI og server
+packages/cli/                  – evo-scan CLI-verktøy
+src/App.jsx                    – Root React-komponent, autentiseringsflyt
+src/components/                – React-komponenter (Dashboard, panels, cards, modals, scan)
+src/styles/                    – CSS-filer (base, komponenter, animasjoner, responsiv)
+public/                        – Statiske filer
+plan.md                        – Detaljert utviklingsplan og roadmap
 ```
 
 ---
@@ -58,7 +66,7 @@ plan.md                  – Detaljert utviklingsplan og roadmap
 - Funksjonelle komponenter med hooks — ingen klassekomponenter
 - Props destruktureres direkte i funksjonsparametere
 - State håndteres lokalt med `useState`; ingen global state-løsning per nå
-- CSS-klasser navngis med kebab-case, definert i `src/index.css`
+- CSS-klasser navngis med kebab-case, definert i `src/styles/`
 - Komponenter i `src/components/` eksporteres som default export
 
 ### Express (backend)
@@ -96,8 +104,9 @@ const response = await fetch('https://api.githubcopilot.com/inference/chat/compl
 ```
 
 ### Repo-analyse
-- `analyzeRepository(repo)` i `server/analyzer.js` utfører rask regelbasert analyse (kun metadata)
-- `deepAnalyzeRepo(octokit, repo)` i `server/analyzer.js` utfører dyp analyse med GitHub API-kall
+- `analyzeRepository(repo)` i `packages/core` utfører rask regelbasert analyse (kun metadata)
+- `deepAnalyzeRepo(octokit, repo)` i `server/analyzer.js` (fasade) utfører dyp analyse med GitHub API-kall
+- `analyzeRepoFull({octokit, repo, token})` i `server/services/analysis-service.js` kombinerer deep + AI
 - `analyzeWithAI(params)` i `server/copilot-client.js` utfører KI-drevet analyse via Copilot Models API
 - Returnerer `{ recommendations, deepInsights, aiSummary }` per repo
 - Prioriteter: `'high'`, `'medium'`, `'low'`
@@ -107,12 +116,12 @@ const response = await fetch('https://api.githubcopilot.com/inference/chat/compl
 ### KI-analyse (server/copilot-client.js)
 - Bruker GitHub Copilot Models API med prosjekttypespesifikke prompts
 - Støtter prosjekttyper: `web-app`, `android-app`, `api`, `library`, `docs`, `other`
-- Token-bucket rate limiting (standard: 10 req/min, konfigurerbar via `COPILOT_RATE_LIMIT`)
+- Token-bucket rate limiting via `@evo/core` RateLimiter (standard: 10 req/min, konfigurerbar via `COPILOT_RATE_LIMIT`)
 - Retry-logikk ved 429 og 5xx-feil
 - Strukturert JSON-output med robust parsing og validering
 
 ### Issue-opprettelse
-- Bruk `octokit.issues.create()` med label `['product-orchestrator', 'enhancement']`
+- Bruk `octokit.issues.create()` med label `['evo-scan']`
 - Sjekk alltid eksisterende issues med `octokit.issues.listForRepo()` for å unngå duplikater
 
 ---

@@ -1,6 +1,6 @@
 # Evo – Utviklingsplan 🚀
 
-> **Sist oppdatert:** 1. mars 2026
+> **Sist oppdatert:** 2. mars 2026
 
 ## Visjon
 
@@ -29,10 +29,10 @@ Basert på en grundig gjennomgang av hele kodebasen (februar 2026) er følgende 
 
 **Arkitektur og kodekvalitet:**
 - ~~Massiv kodeduplisering: 3 nesten identiske panelkomponenter (~600 LOC), 3 identiske CSS-filer (~480 LOC), duplisert analyselogikk mellom CLI og server (~270 LOC)~~ ✅ Løst — se Fase B
-- `analyzer.js` (nå kortere) og `templates.js` (635 linjer) kan fortsatt splittes
-- `ScanControl.jsx` er 526 linjer uten oppsplitting
+- `analyzer.js` (nå kortere) ~~og `templates.js` (635 linjer) kan fortsatt splittes~~ ✅ Løst — `templates.js` splittet til `server/templates/` (4 filer + index.js)
+- ~~`ScanControl.jsx` er 526 linjer uten oppsplitting~~ ✅ Løst — splittet i 4 delkomponenter
 - ~~Duplisert issue-opprettelseslogikk i `routes/issues.js` (4 nesten like rutehandlere)~~ ✅ Løst — `issue-service.js` service-lag
-- ~~Manglende service-lag — forretningslogikk ligger direkte i Express-routes~~ ✅ Delvis løst — `server/services/issue-service.js` opprettet
+- ~~Manglende service-lag — forretningslogikk ligger direkte i Express-routes~~ ✅ Løst — `issue-service.js`, `scan-service.js`, `analysis-service.js` opprettet
 
 **Sikkerhet:**
 - Ingen `helmet()`-middleware for sikre HTTP-headers
@@ -65,9 +65,9 @@ Basert på en grundig gjennomgang av hele kodebasen (februar 2026) er følgende 
 - `main` i package.json peker til ikke-eksisterende fil
 
 **Stale referanser:**
-- `vite.config.js` bruker `/product-orchestrator/` som base i produksjon (bør være `/evo/`)
-- `package.json` har repo-URL til `product-orchestrator`
-- Helsesjekk sier «Product Orchestrator API»
+- ~~`vite.config.js` bruker `/product-orchestrator/` som base i produksjon (bør være `/evo/`)~~ ✅ Løst
+- ~~`package.json` har repo-URL til `product-orchestrator`~~ ✅ Løst
+- ~~Helsesjekk sier «Product Orchestrator API»~~ ✅ Løst
 
 ---
 
@@ -215,7 +215,7 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-### Fase B: Kodeduplisering og arkitektur-refaktorering 🟠 Høy
+### Fase B: Kodeduplisering og arkitektur-refaktorering ✅ Ferdig
 
 **Mål:** Eliminere ~1500 linjer duplisert kode og innføre riktige abstraksjoner.
 
@@ -224,9 +224,9 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 #### B1. Delt pakke `packages/core/` ✅
 - [x] Opprett `packages/core/` med delt logikk brukt av både CLI og server
 - [x] Flytt `analyzeRepository()`, `detectProjectType()`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK` til core
-- [ ] Flytt rate limiter-klassen til core (CLI mangler denne helt)
+- [x] Flytt rate limiter-klassen til core (CLI mangler denne helt) — `RateLimiter` eksporteres nå fra `@evo/core`
 - [x] Oppdater CLI og server til å importere fra `packages/core/`
-- [x] **Eliminert:** ~270 LOC duplisering — `packages/core/index.js` eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`
+- [x] **Eliminert:** ~270 LOC duplisering — `packages/core/index.js` eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`, `RateLimiter`
 
 #### B2. Generisk `<ConfigurablePanel>`-komponent ✅
 - [x] Lag én felles React-komponent som erstatter `GuardrailsPanel`, `ProductDevelopmentPanel` og `EngineeringVelocityPanel`
@@ -235,22 +235,22 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - [x] **Eliminert:** ~920 LOC JSX + ~480 LOC CSS — erstattet av `ConfigurablePanel.jsx` (~220 LOC) + `panelConfigs.js` + `configurable-panel.css`
 - [x] Slettet: `GuardrailsPanel.jsx`, `ProductDevelopmentPanel.jsx`, `EngineeringVelocityPanel.jsx`, `guardrails.css`, `product-dev.css`, `eng-velocity.css`
 
-#### B3. Service-lag i backend ✅ (delvis)
+#### B3. Service-lag i backend ✅
 - [x] Opprett `server/services/issue-service.js` — felles `createTemplateIssue()` + `validateIssueRequest()`
 - [x] Refaktorer `routes/issues.js` til å bruke service-laget — 3 av 4 rutehandlere bruker nå felles service
-- [ ] Opprett `server/services/scan-service.js` — flytt scan-logikk ut fra routes
-- [ ] Opprett `server/services/analysis-service.js` — AI-merge og dedup-logikk (duplisert i 3 filer)
+- [x] Opprett `server/services/scan-service.js` — scanState, `startScan()`, `createIssuesFromResults()`, `getScanStatus()`, `getScanResults()`; `routes/scan.js` er nå et tynt HTTP-lag (~90 LOC)
+- [x] Opprett `server/services/analysis-service.js` — `analyzeRepoFull()` kombinerer deep + AI-analyse med merge/dedup; brukes av `routes/repos.js` (deep + ai-analyze) og scan-service
 
-#### B4. Splitt store filer
-- [ ] `server/analyzer.js` (1032 linjer) → splitt i `project-detector.js`, `file-analyzer.js`, `recommendation-engine.js`
-- [ ] `server/templates.js` (635 linjer) → flytt templates til egne markdown-filer eller splitt per kategori
-- [ ] `ScanControl.jsx` (526 linjer) → splitt i `ScanOptions`, `ScanProgress`, `ScanResults`, `ScanRepoItem`
-- [ ] `buildScanIssueBody` og `buildScanIssueBodyCompact` → refaktorér til én funksjon med `compact`-parameter
+#### B4. Splitt store filer ✅
+- [x] `server/analyzer.js` (1032 linjer) → splittet i `project-detector.js`, `file-analyzer.js`, `recommendation-engine.js` — `analyzer.js` er nå en fasade-modul som re-eksporterer
+- [x] `server/templates.js` (855 linjer) → splittet i `server/templates/guardrails.js`, `product-dev.js`, `engineering-velocity.js`, `scan.js` + `index.js` re-eksport
+- [x] `ScanControl.jsx` (526 linjer) → splittet i `ScanOptions.jsx`, `ScanProgress.jsx`, `ScanResults.jsx`, `ScanRepoItem.jsx` — ScanControl er nå en tynn orkestrator (~270 LOC)
+- [x] `buildScanIssueBody` og `buildScanIssueBodyCompact` → refaktorert til én funksjon med `compact`-parameter i `server/templates/scan.js`
 
-#### B5. Fjern død kode ✅ (delvis)
+#### B5. Fjern død kode ✅
 - [x] `detectTests()` i analyzer.js — fjernet (erstattet av `detectTestsFromTree`)
 - [x] `queue`/`processing`-felter i RateLimiter — fjernet fra `copilot-client.js`
-- [ ] Redundant fallback-logikk i `fetchRepoTree()` — `default_branch` er allerede tilgjengelig
+- [x] Redundant fallback-logikk i `fetchRepoTree()` — fjernet `default_branch`-fallback
 
 **Estimat:** 4–5 dager | **Risiko:** Middels (regresjoner ved refaktorering)
 
@@ -391,19 +391,19 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-### Fase G: Rebranding-opprydding 🟢 Lett
+### Fase G: Rebranding-opprydding ✅ Ferdig
 
 **Mål:** Fjerne alle gjenværende «Product Orchestrator»-referanser.
 
 **Oppgaver:**
 
-- [ ] **G1. `vite.config.js`** — endre `base` fra `/product-orchestrator/` til `/evo/`
-- [ ] **G2. `package.json`** — oppdater `repository.url`, `bugs.url`, `homepage` til `evo`
-- [ ] **G3. `server/index.js`** — helsesjekk: endre «Product Orchestrator API» til «Evo API»
-- [ ] **G4. `index.html`** — legg til `<meta name="description">`, favicon, `theme-color`
-- [ ] **G5. `README.md`** — oppdater installasjonsinstruksjoner med nye repo-URLer
-- [ ] **G6. `.github/copilot-instructions.md`** — synkroniser med ny filstruktur og arkitektur
-- [ ] **G7. Konsistent språk** — rydd opp i blanding av norsk/engelsk i feilmeldinger og UI-tekster
+- [x] **G1. `vite.config.js`** — endret `base` fra `/product-orchestrator/` til `/evo/`
+- [x] **G2. `package.json`** — oppdatert `repository.url`, `bugs.url`, `homepage` til `evo` (både root og CLI)
+- [x] **G3. `server/index.js`** — helsesjekk og oppstartslogg endret til «Evo API»
+- [x] **G4. `index.html`** — `lang="nb"`, `<meta name="description">`, `theme-color`, SVG-favicon
+- [x] **G5. `README.md`** — oppdatert installasjonsinstruksjoner med nye repo-URLer
+- [x] **G6. `.github/copilot-instructions.md`** — fullstendig omskrevet med ny filstruktur, services/, templates/, RateLimiter
+- [x] **G7. Konsistent språk** — alle kode-kommentarer, CSS, demo.html og issue-body rebrandet til Evo/norsk
 
 **Estimat:** 0.5 dag | **Risiko:** Minimal
 
@@ -419,14 +419,18 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 | A4 | Input-validering (zod) | A | 🔴 Kritisk | ❌ | 2t |
 | A5 | Autentiserings-middleware | A | 🔴 Kritisk | ❌ | 1t |
 | A11 | Fiks license-bug | A | 🔴 Kritisk | ❌ | 0.5t |
-| G1 | Fiks `vite.config.js` base-path | G | 🟢 Lett | ❌ | 0.5t |
-| G2 | Oppdater package.json URLs | G | 🟢 Lett | ❌ | 0.5t |
-| G3 | Helsesjekk-melding → Evo | G | 🟢 Lett | ❌ | 0.5t |
-| B1 | `packages/core/` delt pakke | B | 🟠 Høy | ✅ (delvis — rate limiter gjenstår) | 4t |
+| G1 | Fiks `vite.config.js` base-path | G | 🟢 Lett | ✅ | 0.5t |
+| G2 | Oppdater package.json URLs | G | 🟢 Lett | ✅ | 0.5t |
+| G3 | Helsesjekk-melding → Evo | G | 🟢 Lett | ✅ | 0.5t |
+| G4 | `index.html` meta + favicon | G | 🟢 Lett | ✅ | 0.5t |
+| G5 | README.md repo-URLer | G | 🟢 Lett | ✅ | 0.5t |
+| G6 | copilot-instructions.md synk | G | 🟢 Lett | ✅ | 1t |
+| G7 | Konsistent språk/branding | G | 🟢 Lett | ✅ | 0.5t |
+| B1 | `packages/core/` delt pakke | B | 🟠 Høy | ✅ | 4t |
 | B2 | `<ConfigurablePanel>` komponent | B | 🟠 Høy | ✅ | 4t |
-| B3 | Service-lag i backend | B | 🟠 Høy | ✅ (delvis — scan/analysis gjenstår) | 6t |
-| B4 | Splitt store filer | B | 🟠 Høy | ❌ | 4t |
-| B5 | Fjern død kode | B | 🟠 Høy | ✅ (delvis — fetchRepoTree gjenstår) | 1t |
+| B3 | Service-lag i backend | B | 🟠 Høy | ✅ | 6t |
+| B4 | Splitt store filer | B | 🟠 Høy | ✅ | 4t |
+| B5 | Fjern død kode | B | 🟠 Høy | ✅ | 1t |
 | C1 | A11y-fikser (kritiske) | C | 🟡 Middels | ❌ | 3t |
 | C2 | Performance-fikser | C | 🟡 Middels | ❌ | 2t |
 | C3 | UX-forbedringer | C | 🟡 Middels | ❌ | 4t |
@@ -449,7 +453,7 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 ## Ferdigstilte faser (historikk)
 
 <details>
-<summary>Klikk for å se fullført arbeid fra fase 1–5 og fase B (mars 2026)</summary>
+<summary>Klikk for å se fullført arbeid fra fase 1–5, fase B og fase G (mars 2026)</summary>
 
 ### Fase 1: Dyp repoanalyse med GitHub API — ✅ Ferdig
 - Regelbasert analyse i backend og CLI
@@ -482,14 +486,30 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - GitHub Pages deployment
 - Rebranding fra «Product Orchestrator» til «Evo»
 
-### Fase B (delvis): Kodeduplisering og arkitektur-refaktorering — ✅ Delvis ferdig (1. mars 2026)
-- `packages/core/index.js` opprettet: eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`
+### Fase B: Kodeduplisering og arkitektur-refaktorering — ✅ Ferdig (2. mars 2026)
+- `packages/core/index.js` opprettet: eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`, `RateLimiter`
 - `server/analyzer.js` og `packages/cli/src/analyzer.js` importerer nå fra core — ~270 LOC duplisering fjernet
 - `ConfigurablePanel.jsx` + `panelConfigs.js` + `configurable-panel.css` erstatter 3 identiske panelkomponenter — ~1400 LOC fjernet
 - `server/services/issue-service.js` opprettet med `createTemplateIssue()` + `validateIssueRequest()` — `routes/issues.js` refaktorert
-- Død kode fjernet: `detectTests()`, `queue`/`processing`-felter i RateLimiter
+- `server/services/analysis-service.js` opprettet med `analyzeRepoFull()` — kombinerer deep + AI-analyse; brukes av repos.js og scan-service
+- `server/services/scan-service.js` opprettet med `startScan()`, `createIssuesFromResults()`, `getScanStatus()`, `getScanResults()` — `routes/scan.js` redusert til ~90 LOC HTTP-lag
+- `server/analyzer.js` (1032 LOC) splittet i `project-detector.js`, `file-analyzer.js`, `recommendation-engine.js` — analyzer.js er nå en fasade
+- `server/templates.js` (855 LOC) splittet i `server/templates/guardrails.js`, `product-dev.js`, `engineering-velocity.js`, `scan.js` + `index.js`
+- `ScanControl.jsx` (526 LOC) splittet i `ScanOptions.jsx`, `ScanProgress.jsx`, `ScanResults.jsx`, `ScanRepoItem.jsx` — ScanControl er nå en tynn orkestrator (~270 LOC)
+- `buildScanIssueBody` + `buildScanIssueBodyCompact` slått sammen til én funksjon med `compact`-parameter
+- Død kode fjernet: `detectTests()`, `queue`/`processing`-felter, `fetchRepoTree()`-fallback
+- `RateLimiter` flyttet fra `copilot-client.js` til `@evo/core`
 - Alle 106 tester passerer etter refaktorering
-- Gjenstår: rate limiter til core, `scan-service.js`, `analysis-service.js`, splitt av store filer
+
+### Fase G: Rebranding-opprydding — ✅ Ferdig (2. mars 2026)
+- `vite.config.js` base endret fra `/product-orchestrator/` til `/evo/`
+- `package.json` (root + CLI) repo-URLer oppdatert til evo
+- `server/index.js` helsesjekk og oppstartslogg endret til «Evo API»
+- `index.html`: `lang="nb"`, meta description, theme-color, SVG-favicon
+- `README.md` installasjonsinstruksjoner oppdatert med nye URLer
+- `.github/copilot-instructions.md` fullstendig omskrevet med ny arkitektur
+- Alle «Product Orchestrator»-referanser fjernet fra kode (kun plan.md historikk gjenstår)
+- CSS-kommentarer, demo.html, issue-body rebrandet til Evo/norsk
 
 </details>
 
@@ -520,20 +540,22 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Målarkitektur (etter fase B)
+### Målarkitektur (etter fase B) ✅ Ferdig
 
 ```
 packages/
-  core/           ← ✅ FERDIG: analyzeRepository, detectProjectTypeFromMetadata, PROJECT_TYPE_LABELS, PRIORITY_RANK
+  core/           ← ✅ FERDIG: analyzeRepository, detectProjectTypeFromMetadata, PROJECT_TYPE_LABELS, PRIORITY_RANK, RateLimiter
   cli/            ← ✅ Importerer fra core
 server/
-  services/       ← ✅ issue-service.js ferdig — scan-service.js og analysis-service.js gjenstår
-  routes/         ← ✅ issues.js bruker nå service-laget
+  services/       ← ✅ issue-service.js, analysis-service.js, scan-service.js — komplett service-lag
+  routes/         ← ✅ Alle routes bruker nå service-laget (tynne HTTP-lag)
+  templates/      ← ✅ guardrails.js, product-dev.js, engineering-velocity.js, scan.js + index.js
+  analyzer.js     ← ✅ Fasade — delegerer til project-detector.js, file-analyzer.js, recommendation-engine.js
 src/
   components/
     ConfigurablePanel.jsx  ← ✅ FERDIG: erstatter GuardrailsPanel, ProductDevelopmentPanel, EngineeringVelocityPanel
     panelConfigs.js        ← ✅ FERDIG: datakonfigurasjon for alle 3 paneltyper
-    ScanControl/           ← Gjenstår: splittes i delkomponenter
+    ScanControl.jsx        ← ✅ FERDIG: tynn orkestrator, delegerer til ScanOptions, ScanProgress, ScanResults, ScanRepoItem
 ```
 
 ---
