@@ -13,6 +13,7 @@ const {
   PRODUCT_DEV_TEMPLATES,
   ENGINEERING_VELOCITY_TEMPLATES,
 } = require('../templates');
+const { createTemplateIssue, validateIssueRequest } = require('../services/issue-service');
 
 const router = express.Router();
 
@@ -102,155 +103,71 @@ ${recommendation.marketOpportunity ? `### 💼 Business Value\n\n${recommendatio
 
 // ── POST /api/guardrails/architecture-analysis ──────────────────────────────
 router.post('/guardrails/architecture-analysis', async (req, res) => {
-  const { owner, repo: repoName } = req.body;
-  const token = extractToken(req);
+  const validated = validateIssueRequest(req, res);
+  if (!validated) return;
 
-  if (!token) {
-    return res.status(401).json({ error: 'GitHub token required' });
-  }
-  if (!owner || !repoName) {
-    return res.status(400).json({ error: 'Missing required fields: owner, repo' });
-  }
+  const { token, owner, repoName } = validated;
+  const template = architectureAnalysisTemplate(repoName);
 
-  const octokit = getOctokit(token);
-  const { title, labels, body } = architectureAnalysisTemplate(repoName);
-
-  let issue;
   try {
-    const { data } = await octokit.issues.create({
-      owner,
-      repo: repoName,
-      title,
-      body,
-      labels,
+    const result = await createTemplateIssue({
+      token, owner, repoName, template,
+      logPrefix: 'Architecture analysis',
     });
-    issue = data;
-  } catch (error) {
-    console.error('Error creating architecture analysis issue:', error);
-    return res.status(500).json({ error: 'Failed to create issue', message: error.message });
+    return res.json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.error, message: err.message });
   }
-
-  const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
-    owner,
-    repoName,
-    issueNumber: issue.number,
-  });
-
-  if (copilotAssigned) {
-    console.log(`✓ Architecture analysis issue #${issue.number} assigned to ${botLogin}`);
-  }
-
-  return res.json({
-    success: true,
-    issueUrl: issue.html_url,
-    issueNumber: issue.number,
-    copilotAssigned,
-    note: copilotAssigned
-      ? 'Arkitekturanalyse-issue opprettet og tildelt Copilot-agent!'
-      : 'Issue opprettet, men Copilot-agent kunne ikke tildeles automatisk. Tildel manuelt om nødvendig.',
-  });
 });
 
 // ── POST /api/product-dev/:actionId ─────────────────────────────────────────
 router.post('/product-dev/:actionId', async (req, res) => {
   const { actionId } = req.params;
-  const { owner, repo: repoName } = req.body;
-  const token = extractToken(req);
-
-  if (!token) {
-    return res.status(401).json({ error: 'GitHub token required' });
-  }
-  if (!owner || !repoName) {
-    return res.status(400).json({ error: 'Missing required fields: owner, repo' });
-  }
+  const validated = validateIssueRequest(req, res);
+  if (!validated) return;
 
   const templateFn = PRODUCT_DEV_TEMPLATES[actionId];
   if (!templateFn) {
     return res.status(400).json({ error: `Unknown product-dev action: ${actionId}` });
   }
 
-  const octokit = getOctokit(token);
-  const { title, labels, body } = templateFn(repoName);
+  const { token, owner, repoName } = validated;
+  const template = templateFn(repoName);
 
-  let issue;
   try {
-    const { data } = await octokit.issues.create({ owner, repo: repoName, title, body, labels });
-    issue = data;
-  } catch (error) {
-    console.error(`Error creating product-dev issue (${actionId}):`, error);
-    return res.status(500).json({ error: 'Failed to create issue', message: error.message });
+    const result = await createTemplateIssue({
+      token, owner, repoName, template,
+      logPrefix: `Product-dev (${actionId})`,
+    });
+    return res.json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.error, message: err.message });
   }
-
-  const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
-    owner,
-    repoName,
-    issueNumber: issue.number,
-  });
-
-  if (copilotAssigned) {
-    console.log(`✓ Product-dev issue #${issue.number} (${actionId}) assigned to ${botLogin}`);
-  }
-
-  return res.json({
-    success: true,
-    issueUrl: issue.html_url,
-    issueNumber: issue.number,
-    copilotAssigned,
-    note: copilotAssigned
-      ? 'Produktutviklings-issue opprettet og tildelt Copilot-agent!'
-      : 'Issue opprettet, men Copilot-agent kunne ikke tildeles automatisk. Tildel manuelt om nødvendig.',
-  });
 });
 
 // ── POST /api/engineering-velocity/:actionId ────────────────────────────────
 router.post('/engineering-velocity/:actionId', async (req, res) => {
   const { actionId } = req.params;
-  const { owner, repo: repoName } = req.body;
-  const token = extractToken(req);
-
-  if (!token) {
-    return res.status(401).json({ error: 'GitHub token required' });
-  }
-  if (!owner || !repoName) {
-    return res.status(400).json({ error: 'Missing required fields: owner, repo' });
-  }
+  const validated = validateIssueRequest(req, res);
+  if (!validated) return;
 
   const templateFn = ENGINEERING_VELOCITY_TEMPLATES[actionId];
   if (!templateFn) {
     return res.status(400).json({ error: `Unknown engineering-velocity action: ${actionId}` });
   }
 
-  const octokit = getOctokit(token);
-  const { title, labels, body } = templateFn(repoName);
+  const { token, owner, repoName } = validated;
+  const template = templateFn(repoName);
 
-  let issue;
   try {
-    const { data } = await octokit.issues.create({ owner, repo: repoName, title, body, labels });
-    issue = data;
-  } catch (error) {
-    console.error(`Error creating engineering-velocity issue (${actionId}):`, error);
-    return res.status(500).json({ error: 'Failed to create issue', message: error.message });
+    const result = await createTemplateIssue({
+      token, owner, repoName, template,
+      logPrefix: `Engineering-velocity (${actionId})`,
+    });
+    return res.json(result);
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.error, message: err.message });
   }
-
-  const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
-    owner,
-    repoName,
-    issueNumber: issue.number,
-  });
-
-  if (copilotAssigned) {
-    console.log(`✓ Engineering-velocity issue #${issue.number} (${actionId}) assigned to ${botLogin}`);
-  }
-
-  return res.json({
-    success: true,
-    issueUrl: issue.html_url,
-    issueNumber: issue.number,
-    copilotAssigned,
-    note: copilotAssigned
-      ? 'Leveransekvalitet-issue opprettet og tildelt Copilot-agent!'
-      : 'Issue opprettet, men Copilot-agent kunne ikke tildeles automatisk. Tildel manuelt om nødvendig.',
-  });
 });
 
 module.exports = router;

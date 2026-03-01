@@ -1,0 +1,249 @@
+/* ─── Configurable Panel (replaces guardrails, product-dev, eng-velocity CSS) ─ */
+
+/* ── Panel container ─────────────────────────────────────────────────── */
+
+.panel {
+  margin: 0 auto 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.panel:hover {
+  border-color: var(--border-strong);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────── */
+
+.panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 22px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.panel__header:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.panel__header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.panel__badge {
+  font-size: 0.68rem;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.panel__toggle-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.panel__toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Content ─────────────────────────────────────────────────────────── */
+
+.panel__content {
+  padding: 0 22px 22px;
+  animation: panel-expand 0.2s ease;
+}
+
+.panel__description {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+
+/* ── Item list ───────────────────────────────────────────────────────── */
+
+.panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: all 0.2s;
+}
+
+.panel__item.disabled {
+  background: rgba(255, 255, 255, 0.01);
+  opacity: 0.5;
+}
+
+.panel__item-info {
+  flex: 1;
+}
+
+.panel__item-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+  font-size: 0.88rem;
+}
+
+.panel__item-icon {
+  font-size: 1rem;
+}
+
+.panel__item-category {
+  font-size: 0.63rem;
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.panel__item-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.panel__item-controls {
+  margin-left: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Trigger section ─────────────────────────────────────────────────── */
+
+.panel__trigger-section {
+  margin-top: 22px;
+  padding: 18px;
+  border-radius: 10px;
+}
+
+.panel__trigger-section h4 {
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+}
+
+.panel__trigger-section > p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+/* ── Color scheme: Guardrails (accent / purple) ──────────────────────── */
+
+.panel--guardrails .panel__title { color: var(--accent); }
+.panel--guardrails .panel__badge {
+  background: rgba(108, 99, 255, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(108, 99, 255, 0.3);
+}
+.panel--guardrails .panel__item.enabled {
+  border-color: rgba(108, 99, 255, 0.2);
+  background: rgba(108, 99, 255, 0.05);
+}
+.panel--guardrails .panel__trigger-section {
+  background: rgba(108, 99, 255, 0.07);
+  border: 1px solid rgba(108, 99, 255, 0.2);
+}
+.panel--guardrails .panel__trigger-section h4 { color: var(--accent); }
+
+/* ── Color scheme: Product Development (success / green) ─────────────── */
+
+.panel--productdev .panel__title { color: var(--success); }
+.panel--productdev .panel__badge {
+  background: rgba(0, 229, 160, 0.12);
+  color: var(--success);
+  border: 1px solid rgba(0, 229, 160, 0.25);
+}
+.panel--productdev .panel__item.enabled {
+  border-color: rgba(0, 229, 160, 0.2);
+  background: rgba(0, 229, 160, 0.04);
+}
+.panel--productdev .panel__trigger-section {
+  background: rgba(0, 229, 160, 0.06);
+  border: 1px solid rgba(0, 229, 160, 0.18);
+}
+.panel--productdev .panel__trigger-section h4 { color: var(--success); }
+.panel--productdev .btn-trigger {
+  background: linear-gradient(135deg, #00e5a0, #00b37a) !important;
+  box-shadow: 0 4px 14px rgba(0, 229, 160, 0.25) !important;
+}
+
+/* ── Color scheme: Engineering Velocity (warning / orange) ───────────── */
+
+.panel--engvelocity .panel__title { color: var(--warning); }
+.panel--engvelocity .panel__badge {
+  background: rgba(255, 181, 71, 0.12);
+  color: var(--warning);
+  border: 1px solid rgba(255, 181, 71, 0.25);
+}
+.panel--engvelocity .panel__item.enabled {
+  border-color: rgba(255, 181, 71, 0.2);
+  background: rgba(255, 181, 71, 0.04);
+}
+.panel--engvelocity .panel__trigger-section {
+  background: rgba(255, 181, 71, 0.06);
+  border: 1px solid rgba(255, 181, 71, 0.18);
+}
+.panel--engvelocity .panel__trigger-section h4 { color: var(--warning); }
+.panel--engvelocity .btn-trigger {
+  background: linear-gradient(135deg, #ffb547, #f57c00) !important;
+  box-shadow: 0 4px 14px rgba(255, 181, 71, 0.25) !important;
+}
+
+/* ── Category colors (all panels share these) ────────────────────────── */
+
+/* Guardrails categories */
+.cat-quality     { background: rgba(0, 229, 160, 0.12); color: var(--success); }
+.cat-monitoring  { background: rgba(0, 212, 255, 0.1);  color: var(--info); }
+.cat-maintenance { background: rgba(255, 181, 71, 0.12); color: var(--warning); }
+.cat-security    { background: rgba(255, 77, 106, 0.12); color: var(--danger); }
+.cat-analysis    { background: rgba(108, 99, 255, 0.15); color: var(--accent); }
+
+/* Product dev categories */
+.cat-ux       { background: rgba(0, 229, 160, 0.10); color: var(--success); }
+.cat-market   { background: rgba(0, 212, 255, 0.10);  color: var(--info); }
+.cat-features { background: rgba(255, 181, 71, 0.12); color: var(--warning); }
+.cat-dx       { background: rgba(108, 99, 255, 0.15); color: var(--accent); }
+.cat-pmf      { background: rgba(255, 77, 106, 0.10); color: var(--danger); }
+
+/* Engineering velocity categories */
+.cat-cicd          { background: rgba(255, 181, 71, 0.12);  color: var(--warning); }
+.cat-dora          { background: rgba(108, 99, 255, 0.12);  color: var(--accent); }
+.cat-observability { background: rgba(0, 212, 255, 0.10);   color: var(--info); }
+.cat-release       { background: rgba(255, 77, 106, 0.10);  color: var(--danger); }
+.cat-community     { background: rgba(0, 229, 160, 0.10);   color: var(--success); }

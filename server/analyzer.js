@@ -4,9 +4,15 @@
  * server/analyzer.js — Utvidet analysemotor for Evo backend
  *
  * Eksporterer:
- *   analyzeRepository(repo)       — rask, regelbasert analyse (kun metadata)
+ *   analyzeRepository(repo)       — rask, regelbasert analyse (kun metadata) — fra @evo/core
  *   deepAnalyzeRepo(octokit, repo) — async, dyp analyse med GitHub API-kall
  */
+
+const {
+  analyzeRepository,
+  detectProjectTypeFromMetadata,
+  PROJECT_TYPE_LABELS,
+} = require('../packages/core');
 
 // ─── Konstanter ──────────────────────────────────────────────────────────────
 
@@ -97,211 +103,7 @@ const CONFIG_EXTENSIONS = new Set(['.json', '.yml', '.yaml', '.toml', '.xml', '.
 const STYLE_EXTENSIONS = new Set(['.css', '.scss', '.sass', '.less', '.styl']);
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.avif']);
 
-// ─── Lettvekts prosjekttypegjenkjenning (metadata-only) ──────────────────────
-
-/**
- * Detekter prosjekttype basert kun på repo-metadata (språk, navn, topics).
- * Brukes i rask analyse uten ekstra API-kall. For dypere deteksjon, bruk detectProjectType().
- *
- * @param {object} repo — rå repo-objekt fra GitHub API
- * @returns {'web-app'|'android-app'|'api'|'library'|'docs'|'other'}
- */
-function detectProjectTypeFromMetadata(repo) {
-  const lang = (repo.language || '').toLowerCase();
-  const name = (repo.name || '').toLowerCase();
-  const desc = (repo.description || '').toLowerCase();
-  const topics = (repo.topics || []).map(t => t.toLowerCase());
-
-  // Android-indikatorer
-  if (
-    lang === 'kotlin' || lang === 'java' ||
-    topics.some(t => ['android', 'android-app', 'mobile'].includes(t)) ||
-    name.includes('android')
-  ) {
-    if (
-      topics.some(t => ['android', 'android-app'].includes(t)) ||
-      name.includes('android') ||
-      desc.includes('android')
-    ) {
-      return 'android-app';
-    }
-  }
-
-  // Dokumentasjon
-  if (
-    topics.some(t => ['docs', 'documentation', 'docusaurus', 'mkdocs', 'jekyll'].includes(t)) ||
-    name.includes('docs') || name.includes('documentation') ||
-    desc.includes('dokumentasjon') || desc.includes('documentation')
-  ) {
-    return 'docs';
-  }
-
-  // Web-app
-  const webTopics = ['react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'web-app', 'frontend', 'webapp', 'website'];
-  if (
-    topics.some(t => webTopics.includes(t)) ||
-    lang === 'html' || lang === 'css' ||
-    (lang === 'typescript' && (name.includes('app') || name.includes('web') || name.includes('site') || name.includes('dashboard'))) ||
-    (lang === 'javascript' && (name.includes('app') || name.includes('web') || name.includes('site') || name.includes('dashboard')))
-  ) {
-    return 'web-app';
-  }
-
-  // API / Backend
-  const apiTopics = ['api', 'backend', 'server', 'rest', 'graphql', 'microservice'];
-  if (
-    topics.some(t => apiTopics.includes(t)) ||
-    name.includes('api') || name.includes('server') || name.includes('backend') ||
-    lang === 'go' || lang === 'python' || lang === 'ruby' || lang === 'php'
-  ) {
-    return 'api';
-  }
-
-  // Bibliotek / npm-pakke
-  const libTopics = ['library', 'npm', 'package', 'sdk', 'toolkit', 'cli'];
-  if (
-    topics.some(t => libTopics.includes(t)) ||
-    name.includes('lib') || name.includes('sdk') || name.includes('toolkit')
-  ) {
-    return 'library';
-  }
-
-  // Rust er ofte biblioteker
-  if (lang === 'rust') return 'library';
-
-  return 'other';
-}
-
-// ─── Regelbasert analyse (metadata-only) ─────────────────────────────────────
-
-/**
- * Rask regelbasert analyse basert kun på repo-metadata (ingen ekstra API-kall).
- * Brukes for bulk-listingen i /api/repos.
- */
-function analyzeRepository(repo) {
-  const recommendations = [];
-
-  const daysSinceUpdate = repo.updated_at
-    ? Math.floor((Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24))
-    : 999;
-
-  const openIssues = repo.open_issues_count || 0;
-  const stars = repo.stargazers_count || 0;
-  const forks = repo.forks_count || 0;
-  const isPublic = !repo.private;
-
-  // Dokumentasjon
-  if (!repo.description) {
-    recommendations.push({
-      type: 'documentation',
-      priority: 'medium',
-      title: 'Legg til beskrivelse',
-      description: 'Legg til en tydelig beskrivelse av hva prosjektet gjør.',
-      marketOpportunity: 'Tydelig beskrivelse bedrer synligheten i GitHub-søk.',
-    });
-  }
-
-  if (!repo.homepage && isPublic) {
-    recommendations.push({
-      type: 'documentation',
-      priority: 'low',
-      title: 'Legg til nettside/dokumentasjonslenke',
-      description: 'Sett en homepage-URL i repo-innstillingene.',
-      marketOpportunity: 'Profesjonell nettside øker troverdighet og brukertillit.',
-    });
-  }
-
-  // Aktivitet
-  if (daysSinceUpdate > 180) {
-    recommendations.push({
-      type: 'activity',
-      priority: 'high',
-      title: 'Repositoryet er inaktivt',
-      description: `Siste aktivitet var ${daysSinceUpdate} dager siden. Vurder oppdatering eller arkivering.`,
-      marketOpportunity: 'Regelmessige oppdateringer signaliserer aktivt vedlikehold til potensielle brukere.',
-    });
-  } else if (daysSinceUpdate > 60) {
-    recommendations.push({
-      type: 'activity',
-      priority: 'medium',
-      title: 'Oppdater repositoryet',
-      description: `Siste aktivitet var ${daysSinceUpdate} dager siden.`,
-      marketOpportunity: 'Jevnlig aktivitet holder prosjektet relevant.',
-    });
-  }
-
-  // Issues
-  if (openIssues > 20) {
-    recommendations.push({
-      type: 'maintenance',
-      priority: 'high',
-      title: 'Mange åpne issues',
-      description: `${openIssues} åpne issues. Vurder triagering og lukking av utdaterte issues.`,
-      marketOpportunity: 'Aktivt issue-arbeid viser prosjekthelse og tiltrekker bidragsytere.',
-    });
-  } else if (openIssues > 10) {
-    recommendations.push({
-      type: 'maintenance',
-      priority: 'medium',
-      title: 'Håndter åpne issues',
-      description: `${openIssues} åpne issues – se gjennom og prioriter.`,
-      marketOpportunity: 'Ryddig backlog er et faresignal for aktive brukere.',
-    });
-  }
-
-  // Synlighet og community
-  if (isPublic && stars < 5 && daysSinceUpdate < 90) {
-    recommendations.push({
-      type: 'visibility',
-      priority: 'low',
-      title: 'Promoter prosjektet',
-      description: 'Del prosjektet i relevante forum, communities og sosiale medier.',
-      marketOpportunity: 'Økt synlighet gir flere brukere og potensielle bidragsytere.',
-    });
-  }
-
-  if (isPublic && stars > 50 && forks < 10) {
-    recommendations.push({
-      type: 'community',
-      priority: 'medium',
-      title: 'Tilrettelegg for bidragsytere',
-      description: 'Opprett CONTRIBUTING.md og merk enkle issues med "good first issue".',
-      marketOpportunity: 'Voksende bidragsyterbas akselererer produktutviklingen.',
-    });
-  }
-
-  // Lisens
-  if (isPublic && !repo.license) {
-    recommendations.push({
-      type: 'documentation',
-      priority: 'high',
-      title: 'Legg til lisens',
-      description: 'Offentlige repos uten lisens er implisitt "alle rettigheter forbeholdt" og hindrer adopsjon.',
-      marketOpportunity: 'MIT/Apache 2.0-lisens er industristandarden for åpen kildekode og øker adopsjon markant.',
-    });
-  }
-
-  // Lettvekts prosjekttypegjenkjenning fra metadata
-  const projectType = detectProjectTypeFromMetadata(repo);
-
-  return {
-    repo: {
-      name: repo.name,
-      fullName: repo.full_name,
-      description: repo.description,
-      url: repo.html_url,
-      language: repo.language,
-      stars,
-      forks,
-      openIssues,
-      updatedAt: repo.updated_at,
-      visibility: repo.private ? 'private' : 'public',
-      license: repo.license?.spdx_id || null,
-      projectType,
-    },
-    recommendations,
-  };
-}
+// detectProjectTypeFromMetadata og analyzeRepository er importert fra @evo/core (se toppen av filen)
 
 // ─── Hjelpefunksjoner for dyp analyse ────────────────────────────────────────
 
@@ -758,38 +560,6 @@ async function deepAnalyzeRepo(octokit, repo) {
     },
     recommendations: allRecommendations,
   };
-}
-
-// ─── Test-deteksjon (API-basert – legacy) ─────────────────────────────────────
-
-async function detectTests(octokit, owner, repoName, rootFiles) {
-  const rootSet = new Set(rootFiles.map(f => f.toLowerCase()));
-
-  // Sjekk rotnivå-mapper
-  for (const dir of TEST_DIRS) {
-    if (rootSet.has(dir)) return true;
-  }
-
-  // Sjekk package.json for test-script
-  try {
-    const pkgContent = await fetchFileContent(octokit, owner, repoName, 'package.json');
-    if (pkgContent) {
-      const pkg = JSON.parse(pkgContent);
-      if (pkg.scripts?.test && !pkg.scripts.test.includes('no test')) return true;
-    }
-  } catch {
-    // ignore
-  }
-
-  // Sjekk src/-mappa for .test.js-filer
-  try {
-    const srcFiles = await listDir(octokit, owner, repoName, 'src');
-    if (srcFiles.some(f => TEST_FILE_PATTERNS.some(p => p.test(f)))) return true;
-  } catch {
-    // ignore
-  }
-
-  return false;
 }
 
 // ─── Test-deteksjon fra filtre (ingen ekstra API-kall) ────────────────────────

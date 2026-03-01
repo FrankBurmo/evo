@@ -27,9 +27,7 @@
 @import './components/repo-card.css';
 @import './components/modal.css';
 @import './components/panel-shared.css';
-@import './components/guardrails.css';
-@import './components/product-dev.css';
-@import './components/eng-velocity.css';
+@import './components/configurable-panel.css';
 @import './components/scan-control.css';
 
 /* ─── Responsive ─────────────────────────────────────────────────────── */

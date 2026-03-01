@@ -1,8 +1,9 @@
-/* ─── Shared Panel Base (Guardrails, ProductDev, EngVelocity) ────────── */
+/* ─── Shared Panel Base (legacy class names + new .panel) ────────────── */
 
 .guardrails-panel,
 .productdev-panel,
-.engvelocity-panel {
+.engvelocity-panel,
+.panel {
   margin: 0 auto 20px;
   background: rgba(255, 255, 255, 0.03);
   border-radius: var(--radius-lg);
@@ -13,7 +14,8 @@
 
 .guardrails-panel:hover,
 .productdev-panel:hover,
-.engvelocity-panel:hover {
+.engvelocity-panel:hover,
+.panel:hover {
   border-color: var(--border-strong);
 }
 

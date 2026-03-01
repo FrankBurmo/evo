@@ -12,12 +12,7 @@ const {
   printRepoResult,
   printSummary,
 } = require('./output');
-
-const PRIORITY_RANK = { high: 3, medium: 2, low: 1, info: 0, success: 0 };
-
-function meetsMinPriority(recPriority, minPriority) {
-  return (PRIORITY_RANK[recPriority] || 0) >= (PRIORITY_RANK[minPriority] || 0);
-}
+const { PRIORITY_RANK, meetsMinPriority } = require('../../core');
 
 /**
  * Hovedfunksjon: skann repos, analyser, opprett issues.

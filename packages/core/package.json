@@ -1,0 +1,8 @@
+{
+  "name": "@evo/core",
+  "version": "0.1.0",
+  "description": "Delt analysemotor for Evo – brukes av både server og CLI",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true
+}

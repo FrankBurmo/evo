@@ -11,6 +11,7 @@ const { getOctokit, extractToken, assignCopilotToIssue } = require('../github');
 const { analyzeRepository, deepAnalyzeRepo } = require('../analyzer');
 const { analyzeWithAI } = require('../copilot-client');
 const { buildScanIssueBody, buildScanIssueBodyCompact } = require('../templates');
+const { PRIORITY_RANK, meetsMinPriority } = require('../../packages/core');
 
 const router = express.Router();
 
@@ -35,10 +36,8 @@ function resetScanState() {
   scanState.options = {};
 }
 
-// ── Priority helpers ────────────────────────────────────────────────────────
-const PRIORITY_RANK = { high: 3, medium: 2, low: 1, info: 0 };
-const meetsMin = (p, minPriority) =>
-  (PRIORITY_RANK[p] || 0) >= (PRIORITY_RANK[minPriority] || 0);
+// ── Priority helpers (meetsMin bruker alias for bakoverkompatibilitet) ───────
+const meetsMin = (p, minPriority) => meetsMinPriority(p, minPriority);
 
 // ── POST /api/scan/start ────────────────────────────────────────────────────
 router.post('/scan/start', async (req, res) => {

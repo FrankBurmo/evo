@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import RepositoryCard from './RepositoryCard';
-import GuardrailsPanel from './GuardrailsPanel';
-import ProductDevelopmentPanel from './ProductDevelopmentPanel';
-import EngineeringVelocityPanel from './EngineeringVelocityPanel';
+import ConfigurablePanel from './ConfigurablePanel';
+import {
+  GUARDRAILS_CONFIG,
+  PRODUCT_DEV_CONFIG,
+  ENGINEERING_VELOCITY_CONFIG,
+} from './panelConfigs';
 import ScanControl from './ScanControl';
 
 function Dashboard({ token, onLogout }) {
@@ -173,11 +176,11 @@ function Dashboard({ token, onLogout }) {
 
       <ScanControl token={token} />
 
-      <GuardrailsPanel repos={repos} token={token} />
+      <ConfigurablePanel repos={repos} token={token} {...GUARDRAILS_CONFIG} />
 
-      <ProductDevelopmentPanel repos={repos} token={token} />
+      <ConfigurablePanel repos={repos} token={token} {...PRODUCT_DEV_CONFIG} />
 
-      <EngineeringVelocityPanel repos={repos} token={token} />
+      <ConfigurablePanel repos={repos} token={token} {...ENGINEERING_VELOCITY_CONFIG} />
 
       <div className="filters">
         <h3>Filtrer repositories</h3>

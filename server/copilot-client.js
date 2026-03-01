@@ -32,8 +32,6 @@ class RateLimiter {
     this.maxTokens = burstSize;
     this.lastRefill = Date.now();
     this.refillRate = (60 * 1000) / maxPerMinute; // ms per token
-    this.queue = [];
-    this.processing = false;
   }
 
   _refill() {
