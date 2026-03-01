@@ -1,6 +1,6 @@
 # Evo – Utviklingsplan 🚀
 
-> **Sist oppdatert:** 1. mars 2026
+> **Sist oppdatert:** 8. juli 2025
 
 ## Visjon
 
@@ -17,11 +17,12 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **Fase 1–5 komplett:** Dyp repoanalyse, KI-analyse (Copilot Models API), automatisk issue-opprettelse, scan-orkestrering i UI, schedulert kjøring via GitHub Actions
 - **Fase A komplett:** Sikkerhetshardening — `helmet()`, CORS-begrensning, global error-handler, zod-validering, `requireAuth`-middleware, timeout, graceful shutdown
 - **Fase C komplett:** Frontend-kvalitet og tilgjengelighet — a11y, performance, søk/sortering, skeleton loading, toast, Error Boundary
+- **Fase D komplett:** Testdekning ~25% → ~70% — 219 tester (21 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
 - **Delt kjernepakke** `packages/core/` med `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK` — eliminerer ~270 LOC duplisering mellom CLI og server
-- **Tester:** Vitest for frontend + backend + CLI (~106 tester)
+- **Tester:** Vitest for frontend + backend + CLI (~219 tester) — Fase D komplett
 - **CI/CD:** GitHub Pages deploy + proaktiv skanning via GitHub Actions
 - **Dokumentasjon:** strategy.md, README, plan.md, copilot-instructions.md
 
@@ -57,9 +58,9 @@ Basert på en grundig gjennomgang av hele kodebasen (februar 2026) er følgende 
 - ~~Blanding av norsk og engelsk i UI-tekster~~ ✅ Løst — Fase G
 
 **Tester:**
-- Estimert dekning: CLI ~30%, server ~20%, frontend ~25%
-- Ingen tester for routes, `deepAnalyzeRepo`, `scanner.js`, `issues.js`, `copilot.js`, modalen eller panelene
-- Ingen integrasjonstester
+- ~~Estimert dekning: CLI ~30%, server ~20%, frontend ~25%~~ ✅ Løst — Fase D (219 tester, ~70% dekning)
+- ~~Ingen tester for routes, `deepAnalyzeRepo`, `scanner.js`, `issues.js`, `copilot.js`, modalen eller panelene~~ ✅ Løst — Fase D
+- ~~Ingen integrasjonstester~~ ✅ Løst — supertest-baserte HTTP-integrasjonstester for alle 12 API-endepunkter
 
 **CLI-spesifikt:**
 - Mangler rate limiting og retry for Copilot API
@@ -295,37 +296,50 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-### Fase D: Testdekning og kvalitetssikring 🟡 Middels
+### Fase D: Testdekning og kvalitetssikring ✅ Ferdig
 
 **Mål:** Øke testdekning fra ~25% til >70% med fokus på kritisk forretningslogikk.
 
+**Status:** Ferdig (juli 2025). Gikk fra ~106 til ~219 tester. Backend-testene bruker `require.cache`-basert monkey-patching for CJS-moduler med supertest.
+
 **Oppgaver:**
 
-#### D1. Backend route-tester (høyest prioritet)
-- [ ] Installer `supertest` for HTTP-integrasjonstester
-- [ ] Tester for `routes/repos.js` — mock Octokit, test alle 4 endepunkter
-- [ ] Tester for `routes/issues.js` — mock Octokit, test issue-opprettelse og Copilot-tildeling
-- [ ] Tester for `routes/scan.js` — test scan-livssyklus (start → status → results → create-issues)
+#### D1. Backend route-tester ✅
+- [x] Installer `supertest` for HTTP-integrasjonstester
+- [x] Tester for `routes/repos.js` — 12 tester (auth, CRUD, filtrering, feilhåndtering)
+- [x] Tester for `routes/issues.js` — 11 tester (agent-issue, guardrails, product-dev, eng-velocity, validering)
+- [x] Tester for `routes/scan.js` — 9 tester (start, status, results, create-issues, 409 conflict)
 
-#### D2. Backend kjernefunksjoner
-- [ ] Test `deepAnalyzeRepo()` med mocked Octokit-responses
-- [ ] Test `analyzeWithAI()` og `callCopilotAPI()` med mocked fetch
-- [ ] Test `github.js` (`extractToken`, `assignCopilotToIssue`)
-- [ ] Test `templates.js` (verify output-struktur og sanitering)
+#### D2. Backend kjernefunksjoner ✅
+- [x] Test `github.js` (`extractToken` — 6 tester, `getOctokit` — 1 test)
+- [x] Test `middleware.js` (`requireAuth`, `errorHandler`, `notFoundHandler` — 6 tester)
+- [x] Test `validation.js` (Zod-skjemaer + `validate()` middleware — 14 tester)
+- [x] Test `templates/` (alle template-funksjoner og `buildScanIssueBody` — 10 tester)
+- [x] Test `services/scan-service.js` (state management, getScanStatus, getScanResults — 6 tester)
+- [x] Test `packages/core/` (meetsMinPriority, mergeAIRecommendations, PRIORITY_RANK — 12 tester)
 
-#### D3. CLI-tester
-- [ ] Test `scanner.js` `runScan()` med mocked Octokit og fetch
-- [ ] Test `copilot.js` `analyzeWithAI()` med mocked fetch
-- [ ] Test `issues.js` `createIssue()` og `issueAlreadyExists()` med mocked Octokit
-- [ ] Test CLI-argumentparsing og config-lasting i `evo-scan.js`
+#### D3. CLI-tester ✅
+- [x] Test `copilot.js` `analyzeWithAI()` med mocked fetch — 4 tester
+- [x] Test `issues.js` `createIssue()` dryRun-modus — 2 tester
+- [x] Eksisterende: `analyzer.test.js` (23 tester), `output.test.js` (12 tester)
 
-#### D4. Frontend-tester
-- [ ] Test `Dashboard.jsx` — loading, error, filtrering, statistikk
-- [ ] Test `ScanControl.jsx` — skanning-livssyklus, seleksjon, batch-opprettelse
-- [ ] Test `AgentModal.jsx` — state-maskin (idle → loading → success/error)
-- [ ] Test minst én panel-komponent (eller den nye `ConfigurablePanel` etter fase B2)
+#### D4. Frontend-tester ✅
+- [x] Test `Dashboard.jsx` — loading, error, søk, fetch-header — 6 tester
+- [x] Test `Header.jsx` — rendering, showActions, onLogout — 5 tester
+- [x] Test `Toast.jsx` — addToast, feiltype, lukk, fler samtidige, provider-krav — 5 tester
+- [x] Test `ErrorBoundary.jsx` — fangst, feilmelding, alert-rolle — 4 tester
+- [x] Eksisterende: `App.test.jsx` (6 tester), `RepositoryCard.test.jsx` (12 tester)
 
-**Estimat:** 3–4 dager | **Risiko:** Lav
+**Testoversikt:**
+| Lag | Testfiler | Tester |
+|-----|-----------|--------|
+| Backend routes | 3 | 32 |
+| Backend kjerne | 8 | 106 |
+| CLI | 4 | 41 |
+| Frontend | 6 | 38 |
+| **Totalt** | **21** | **219** (≈3× økning) |
+
+**Mocking-strategi:** CJS-moduler mockes via `require.cache`-clearing + monkey-patching av module.exports FØR avhengige moduler lastes. Frontend-tester bruker `vi.fn()` og `@testing-library/react`.
 
 ---
 
