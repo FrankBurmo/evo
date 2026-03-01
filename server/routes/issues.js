@@ -7,32 +7,35 @@
  *   POST /api/engineering-velocity/:actionId
  */
 const express = require('express');
-const { getOctokit, extractToken, assignCopilotToIssue } = require('../github');
+const { getOctokit, assignCopilotToIssue } = require('../github');
 const {
   architectureAnalysisTemplate,
   PRODUCT_DEV_TEMPLATES,
   ENGINEERING_VELOCITY_TEMPLATES,
 } = require('../templates');
 const { createTemplateIssue, validateIssueRequest } = require('../services/issue-service');
+const { requireAuth } = require('../middleware');
+const {
+  validate,
+  createAgentIssueSchema,
+  templateIssueSchema,
+  actionIdParamsSchema,
+} = require('../validation');
 
 const router = express.Router();
 
 // ── POST /api/create-agent-issue ────────────────────────────────────────────
-router.post('/create-agent-issue', async (req, res) => {
-  const { owner, repo: repoName, recommendation } = req.body;
-  const token = extractToken(req);
+router.post(
+  '/create-agent-issue',
+  requireAuth,
+  validate({ body: createAgentIssueSchema }),
+  async (req, res, next) => {
+    try {
+      const { owner, repo: repoName, recommendation } = req.body;
+      const octokit = getOctokit(req.token);
 
-  if (!token) {
-    return res.status(401).json({ error: 'GitHub token required' });
-  }
-  if (!owner || !repoName || !recommendation) {
-    return res.status(400).json({ error: 'Missing required fields: owner, repo, recommendation' });
-  }
-
-  const octokit = getOctokit(token);
-
-  const issueTitle = `[Copilot Agent] ${recommendation.title}`;
-  const issueBody = `## 🤖 Copilot Agent-oppgave
+      const issueTitle = `[Copilot Agent] ${recommendation.title}`;
+      const issueBody = `## 🤖 Copilot Agent-oppgave
 
 Dette issuet ble automatisk opprettet av **Evo** og tildelt Copilot for automatisert løsning.
 
@@ -58,116 +61,123 @@ ${recommendation.marketOpportunity ? `### 💼 Forretningsverdi\n\n${recommendat
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Prioritet: \`${recommendation.priority}\`*
 `;
 
-  // Create issue
-  let issue;
-  try {
-    const labels = ['copilot:run'];
-    if (recommendation.priority === 'high') labels.push('priority: high');
-    if (recommendation.type) labels.push(recommendation.type);
+      // Create issue
+      let issue;
+      const labels = ['copilot:run'];
+      if (recommendation.priority === 'high') labels.push('priority: high');
+      if (recommendation.type) labels.push(recommendation.type);
 
-    const { data } = await octokit.issues.create({
-      owner,
-      repo: repoName,
-      title: issueTitle,
-      body: issueBody,
-      labels,
-    });
-    issue = data;
-  } catch (error) {
-    console.error('Error creating issue:', error);
-    return res.status(500).json({ error: 'Failed to create issue', message: error.message });
-  }
+      const { data } = await octokit.issues.create({
+        owner,
+        repo: repoName,
+        title: issueTitle,
+        body: issueBody,
+        labels,
+      });
+      issue = data;
 
-  // Assign Copilot
-  const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
-    owner,
-    repoName,
-    issueNumber: issue.number,
-  });
+      // Assign Copilot
+      const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
+        owner,
+        repoName,
+        issueNumber: issue.number,
+      });
 
-  if (copilotAssigned) {
-    console.log(`✓ Issue #${issue.number} - ${botLogin} assigned successfully via GraphQL!`);
-  }
+      if (copilotAssigned) {
+        console.log(`✓ Issue #${issue.number} - ${botLogin} assigned successfully via GraphQL!`);
+      }
 
-  return res.json({
-    success: true,
-    issueUrl: issue.html_url,
-    issueNumber: issue.number,
-    copilotAssigned,
-    assignmentMethod: copilotAssigned ? 'graphql-mutation' : null,
-    note: copilotAssigned
-      ? 'Issue created and assigned to Copilot agent successfully!'
-      : 'Issue created, but Copilot agent could not be assigned automatically. Make sure GitHub Copilot is enabled for this repository and try assigning manually.',
-  });
-});
+      return res.json({
+        success: true,
+        issueUrl: issue.html_url,
+        issueNumber: issue.number,
+        copilotAssigned,
+        assignmentMethod: copilotAssigned ? 'graphql-mutation' : null,
+        note: copilotAssigned
+          ? 'Issue created and assigned to Copilot agent successfully!'
+          : 'Issue created, but Copilot agent could not be assigned automatically. Make sure GitHub Copilot is enabled for this repository and try assigning manually.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
 
 // ── POST /api/guardrails/architecture-analysis ──────────────────────────────
-router.post('/guardrails/architecture-analysis', async (req, res) => {
-  const validated = validateIssueRequest(req, res);
-  if (!validated) return;
+router.post(
+  '/guardrails/architecture-analysis',
+  requireAuth,
+  validate({ body: templateIssueSchema }),
+  async (req, res, next) => {
+    const { owner, repo: repoName } = req.body;
+    const template = architectureAnalysisTemplate(repoName);
 
-  const { token, owner, repoName } = validated;
-  const template = architectureAnalysisTemplate(repoName);
-
-  try {
-    const result = await createTemplateIssue({
-      token, owner, repoName, template,
-      logPrefix: 'Architecture analysis',
-    });
-    return res.json(result);
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.error, message: err.message });
-  }
-});
+    try {
+      const result = await createTemplateIssue({
+        token: req.token, owner, repoName, template,
+        logPrefix: 'Architecture analysis',
+      });
+      return res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // ── POST /api/product-dev/:actionId ─────────────────────────────────────────
-router.post('/product-dev/:actionId', async (req, res) => {
-  const { actionId } = req.params;
-  const validated = validateIssueRequest(req, res);
-  if (!validated) return;
+router.post(
+  '/product-dev/:actionId',
+  requireAuth,
+  validate({ params: actionIdParamsSchema, body: templateIssueSchema }),
+  async (req, res, next) => {
+    const { actionId } = req.params;
 
-  const templateFn = PRODUCT_DEV_TEMPLATES[actionId];
-  if (!templateFn) {
-    return res.status(400).json({ error: `Unknown product-dev action: ${actionId}` });
-  }
+    const templateFn = PRODUCT_DEV_TEMPLATES[actionId];
+    if (!templateFn) {
+      return res.status(400).json({ error: 'Validation Error', message: `Ukjent product-dev action: ${actionId}`, statusCode: 400 });
+    }
 
-  const { token, owner, repoName } = validated;
-  const template = templateFn(repoName);
+    const { owner, repo: repoName } = req.body;
+    const template = templateFn(repoName);
 
-  try {
-    const result = await createTemplateIssue({
-      token, owner, repoName, template,
-      logPrefix: `Product-dev (${actionId})`,
-    });
-    return res.json(result);
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.error, message: err.message });
-  }
-});
+    try {
+      const result = await createTemplateIssue({
+        token: req.token, owner, repoName, template,
+        logPrefix: `Product-dev (${actionId})`,
+      });
+      return res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 // ── POST /api/engineering-velocity/:actionId ────────────────────────────────
-router.post('/engineering-velocity/:actionId', async (req, res) => {
-  const { actionId } = req.params;
-  const validated = validateIssueRequest(req, res);
-  if (!validated) return;
+router.post(
+  '/engineering-velocity/:actionId',
+  requireAuth,
+  validate({ params: actionIdParamsSchema, body: templateIssueSchema }),
+  async (req, res, next) => {
+    const { actionId } = req.params;
 
-  const templateFn = ENGINEERING_VELOCITY_TEMPLATES[actionId];
-  if (!templateFn) {
-    return res.status(400).json({ error: `Unknown engineering-velocity action: ${actionId}` });
-  }
+    const templateFn = ENGINEERING_VELOCITY_TEMPLATES[actionId];
+    if (!templateFn) {
+      return res.status(400).json({ error: 'Validation Error', message: `Ukjent engineering-velocity action: ${actionId}`, statusCode: 400 });
+    }
 
-  const { token, owner, repoName } = validated;
-  const template = templateFn(repoName);
+    const { owner, repo: repoName } = req.body;
+    const template = templateFn(repoName);
 
-  try {
-    const result = await createTemplateIssue({
-      token, owner, repoName, template,
-      logPrefix: `Engineering-velocity (${actionId})`,
-    });
-    return res.json(result);
-  } catch (err) {
-    return res.status(err.status || 500).json({ error: err.error, message: err.message });
-  }
-});
+    try {
+      const result = await createTemplateIssue({
+        token: req.token, owner, repoName, template,
+        logPrefix: `Engineering-velocity (${actionId})`,
+      });
+      return res.json(result);
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 module.exports = router;

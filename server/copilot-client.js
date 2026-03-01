@@ -206,7 +206,7 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
     parts.push(`Siste oppdatering: ${new Date(updatedAt).toLocaleDateString('nb-NO')}`);
   }
 
-  parts.push(`Lisens: ${repo.license || repo.license?.spdx_id || 'ingen'}`);
+  parts.push(`Lisens: ${repo.license?.spdx_id || repo.license?.name || 'ingen'}`);
 
   // Dyp innsikt (om tilgjengelig)
   if (deepInsights) {
@@ -337,23 +337,44 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
 
 // ─── Copilot API-kall ────────────────────────────────────────────────────────
 
+// A8: Konfigurerbar timeout for eksterne API-kall (standard: 30 sekunder)
+const FETCH_TIMEOUT_MS = parseInt(process.env.COPILOT_FETCH_TIMEOUT || '30000', 10);
+
 async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
-  const response = await fetch(COPILOT_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 1000,
-      temperature: 0.3,
-    }),
-  });
+  // A8: AbortController med timeout for å unngå hengende forespørsler
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(COPILOT_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        max_tokens: 1000,
+        temperature: 0.3,
+      }),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      const error = new Error(`Copilot API timeout etter ${FETCH_TIMEOUT_MS}ms`);
+      error.statusCode = 504;
+      throw error;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');

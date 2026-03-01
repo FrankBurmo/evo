@@ -17,11 +17,16 @@ function getOctokit(token) {
 /**
  * Extract a bearer token from the Authorization header (or fall back to env).
  * Returns null when no token is available.
+ *
+ * A7: Case-insensitiv — støtter 'Bearer', 'bearer', 'BEARER' etc.
+ *
  * @param {import('express').Request} req
  * @returns {string|null}
  */
 function extractToken(req) {
-  return req.headers.authorization?.replace('Bearer ', '') || process.env.GITHUB_TOKEN || null;
+  const authHeader = req.headers.authorization || '';
+  const match = authHeader.match(/^bearer\s+(.+)$/i);
+  return (match ? match[1] : null) || process.env.GITHUB_TOKEN || null;
 }
 
 /**

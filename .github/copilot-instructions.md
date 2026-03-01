@@ -28,13 +28,15 @@ React + Vite (frontend)  ←→  Express (backend, port 3001)  ←→  GitHub RE
 ## Katalogstruktur
 
 ```
-server/index.js               – Express API-server — oppsett, middleware, route-montering
-server/github.js              – Octokit-helpers: getOctokit, extractToken, assignCopilotToIssue
+server/index.js               – Express API-server — oppsett, middleware, route-montering, graceful shutdown
+server/middleware.js           – Express-middleware: requireAuth, errorHandler, notFoundHandler
+server/validation.js           – Zod-skjemaer og validate()-middleware for input-validering
+server/github.js              – Octokit-helpers: getOctokit, extractToken (case-insensitiv), assignCopilotToIssue
 server/analyzer.js            – Fasade-modul — re-eksporterer fra sub-moduler
 server/project-detector.js    – Prosjekttypegjenkjenning fra filstruktur
 server/file-analyzer.js       – Filtre-henting og analyse via GitHub API
 server/recommendation-engine.js – Regelbasert anbefalingsgenerering
-server/copilot-client.js      – Copilot Models API-klient — KI-analyse med prosjekttype-prompts
+server/copilot-client.js      – Copilot Models API-klient — KI-analyse med prosjekttype-prompts, AbortController-timeout
 server/templates/              – Issue-body-templates (guardrails, product-dev, eng-velocity, scan)
 server/routes/repos.js        – Ruter for repo-analyse (GET /api/repos, /repo/:o/:n, /deep, /ai-analyze)
 server/routes/issues.js       – Ruter for issue-opprettelse (create-agent-issue, guardrails, etc.)
@@ -144,6 +146,7 @@ const response = await fetch('https://api.githubcopilot.com/inference/chat/compl
 | `PORT` | Backend-port (standard: `3001`) |
 | `COPILOT_MODEL` | AI-modell for KI-analyse (standard: `openai/gpt-4.1`) |
 | `COPILOT_RATE_LIMIT` | Maks Copilot API-kall per minutt (standard: `10`) |
+| `COPILOT_FETCH_TIMEOUT` | Timeout i ms for Copilot API-kall (standard: `30000`) |
 
 Token kan også legges inn i frontend-UI og lagres i `localStorage`.
 

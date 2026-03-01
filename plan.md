@@ -1,6 +1,6 @@
 # Evo – Utviklingsplan 🚀
 
-> **Sist oppdatert:** 2. mars 2026
+> **Sist oppdatert:** 1. mars 2026
 
 ## Visjon
 
@@ -8,13 +8,14 @@ Bygge **Evo** til en **proaktiv utviklingsassistent** som automatisk itererer gj
 
 ---
 
-## Nåværende status (februar 2026)
+## Nåværende status (mars 2026)
 
 Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebrandet fra «Product Orchestrator» til **Evo**, med slagordet *«Produktene dine vokser kontinuerlig – automatisk.»*
 
 ### Hva er ferdig ✅
 
 - **Fase 1–5 komplett:** Dyp repoanalyse, KI-analyse (Copilot Models API), automatisk issue-opprettelse, scan-orkestrering i UI, schedulert kjøring via GitHub Actions
+- **Fase A komplett:** Sikkerhetshardening — `helmet()`, CORS-begrensning, global error-handler, zod-validering, `requireAuth`-middleware, timeout, graceful shutdown
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -35,17 +36,17 @@ Basert på en grundig gjennomgang av hele kodebasen (februar 2026) er følgende 
 - ~~Manglende service-lag — forretningslogikk ligger direkte i Express-routes~~ ✅ Løst — `issue-service.js`, `scan-service.js`, `analysis-service.js` opprettet
 
 **Sikkerhet:**
-- Ingen `helmet()`-middleware for sikre HTTP-headers
-- CORS tillater alle origins
-- Ingen input-validering/sanitering på POST-ruter
-- Uautentisert tilgang til `scan/status` og `scan/results`
-- `extractToken()` er case-sensitiv
+- ~~Ingen `helmet()`-middleware for sikre HTTP-headers~~ ✅ Løst — Fase A
+- ~~CORS tillater alle origins~~ ✅ Løst — Fase A
+- ~~Ingen input-validering/sanitering på POST-ruter~~ ✅ Løst — Fase A
+- ~~Uautentisert tilgang til `scan/status` og `scan/results`~~ ✅ Løst — Fase A
+- ~~`extractToken()` er case-sensitiv~~ ✅ Løst — Fase A
 
 **Robusthet og feilhåndtering:**
-- Ingen global error-handler middleware i Express
+- ~~Ingen global error-handler middleware i Express~~ ✅ Løst — Fase A
 - Mange tomme `catch {}`-blokker i analyzer.js
-- Inkonsistente feilresponser (varierer mellom `{ error }` og `{ error, message }`)
-- Ingen graceful shutdown, ingen timeout på fetch-kall
+- ~~Inkonsistente feilresponser (varierer mellom `{ error }` og `{ error, message }`)~~ ✅ Løst — Fase A
+- ~~Ingen graceful shutdown, ingen timeout på fetch-kall~~ ✅ Løst — Fase A
 - In-memory scan-tilstand — forsvinner ved restart, kun single-tenant
 
 **Frontend/UX:**
@@ -193,23 +194,23 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-### Fase A: Sikkerhetshardening og robusthet 🔴 Kritisk
+### Fase A: Sikkerhetshardening og robusthet ✅ Ferdig
 
 **Mål:** Gjøre backend produksjonsklar med grunnleggende sikkerhet og feilhåndtering.
 
 **Oppgaver:**
 
-- [ ] **A1. Legg til `helmet()`-middleware** — sikre HTTP-headers (CSP, X-Frame-Options, etc.)
-- [ ] **A2. Begrens CORS** — tillat kun kjente origins (`localhost:3000` i dev, GitHub Pages i prod)
-- [ ] **A3. Global error-handler middleware** — konsistent `{ error, message, statusCode }` JSON-format for alle feil
-- [ ] **A4. Input-validering** — innfør `zod`-skjemaer for alle POST-ruter (request body, route params)
-- [ ] **A5. Autentiserings-middleware** — flytt token-sjekk fra individuelle routes til én `requireAuth`-middleware
-- [ ] **A6. Autentiser `scan/status` og `scan/results`** — krever token for å lese skanningsresultater
-- [ ] **A7. Fiks `extractToken()` case-insensitivitet** — støtt `Bearer`, `bearer`, `BEARER`
-- [ ] **A8. Timeout på eksterne fetch-kall** — `AbortController` med konfigurerbar timeout for Copilot API og GitHub API
-- [ ] **A9. Graceful shutdown** — håndter `SIGTERM`/`SIGINT` med pågående request-draining
-- [ ] **A10. Konfiger `trust proxy`** — nødvendig for korrekt rate limiting bak reverse proxy
-- [ ] **A11. Fiks license-bug i `copilot-client.js`** — `repo.license || repo.license?.spdx_id` → `repo.license?.spdx_id || 'ingen'`
+- [x] **A1. Legg til `helmet()`-middleware** — sikre HTTP-headers (CSP, X-Frame-Options, etc.)
+- [x] **A2. Begrens CORS** — tillat kun kjente origins (`localhost:5173`, GitHub Pages)
+- [x] **A3. Global error-handler middleware** — konsistent `{ error, message, statusCode }` JSON-format for alle feil + 404-handler
+- [x] **A4. Input-validering** — `zod`-skjemaer for alle POST-ruter (request body, route params) i `server/validation.js`
+- [x] **A5. Autentiserings-middleware** — `requireAuth` i `server/middleware.js`, setter `req.token` for nedstrøms bruk
+- [x] **A6. Autentiser `scan/status` og `scan/results`** — `router.use('/scan', requireAuth)` krever token på alle scan-ruter
+- [x] **A7. Fiks `extractToken()` case-insensitivitet** — regex-basert, støtter `Bearer`/`bearer`/`BEARER`
+- [x] **A8. Timeout på eksterne fetch-kall** — `AbortController` med konfigurerbar timeout (`COPILOT_FETCH_TIMEOUT`, standard 30s)
+- [x] **A9. Graceful shutdown** — håndterer `SIGTERM`/`SIGINT` med request-draining og 10s timeout
+- [x] **A10. Konfiger `trust proxy`** — `app.set('trust proxy', 1)` for korrekt rate limiting bak reverse proxy
+- [x] **A11. Fiks license-bug i `copilot-client.js`** — `repo.license?.spdx_id || repo.license?.name || 'ingen'`
 
 **Estimat:** 2–3 dager | **Risiko:** Høy (sikkerhetshull i prod)
 
@@ -413,12 +414,12 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 | # | Oppgave | Fase | Prioritet | Status | Estimat |
 |---|---------|------|-----------|--------|---------|
-| A1 | `helmet()`-middleware | A | 🔴 Kritisk | ❌ | 0.5t |
-| A2 | Begrens CORS | A | 🔴 Kritisk | ❌ | 0.5t |
-| A3 | Global error-handler | A | 🔴 Kritisk | ❌ | 1t |
-| A4 | Input-validering (zod) | A | 🔴 Kritisk | ❌ | 2t |
-| A5 | Autentiserings-middleware | A | 🔴 Kritisk | ❌ | 1t |
-| A11 | Fiks license-bug | A | 🔴 Kritisk | ❌ | 0.5t |
+| A1 | `helmet()`-middleware | A | 🔴 Kritisk | ✅ | 0.5t |
+| A2 | Begrens CORS | A | 🔴 Kritisk | ✅ | 0.5t |
+| A3 | Global error-handler | A | 🔴 Kritisk | ✅ | 1t |
+| A4 | Input-validering (zod) | A | 🔴 Kritisk | ✅ | 2t |
+| A5 | Autentiserings-middleware | A | 🔴 Kritisk | ✅ | 1t |
+| A11 | Fiks license-bug | A | 🔴 Kritisk | ✅ | 0.5t |
 | G1 | Fiks `vite.config.js` base-path | G | 🟢 Lett | ✅ | 0.5t |
 | G2 | Oppdater package.json URLs | G | 🟢 Lett | ✅ | 0.5t |
 | G3 | Helsesjekk-melding → Evo | G | 🟢 Lett | ✅ | 0.5t |
@@ -485,7 +486,22 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - Distribusjonsstrategi (7 modeller)
 - GitHub Pages deployment
 - Rebranding fra «Product Orchestrator» til «Evo»
-
+### Fase A: Sikkerhetshardening og robusthet — ✅ Ferdig (1. mars 2026)
+- `helmet()` lagt til for sikre HTTP-headers (CSP, X-Frame-Options, HSTS, etc.)
+- CORS begrenset til kjente origins (localhost:5173, GitHub Pages) — ikke lenger åpen for alle
+- Global error-handler middleware med konsistent `{ error, message, statusCode }` JSON-format + 404-handler for ukjente API-ruter
+- Input-validering via `zod`-skjemaer på alle POST-ruter — `server/validation.js` med `validate()` middleware-factory
+- Sentralisert `requireAuth`-middleware i `server/middleware.js` — erstatter dupliserte token-sjekker i hver rute
+- Alle scan-ruter (`/scan/status`, `/scan/results`) krever nå autentisering
+- `extractToken()` fikset: case-insensitiv regex (`Bearer`/`bearer`/`BEARER`)
+- `AbortController`-timeout (konfigurerbar via `COPILOT_FETCH_TIMEOUT`, standard 30s) på alle Copilot API-kall
+- Graceful shutdown: håndterer `SIGTERM`/`SIGINT` med request-draining og 10s tvungen avslutning
+- `trust proxy` konfigurert for korrekt rate limiting bak reverse proxy
+- License-bug fikset: `repo.license?.spdx_id || repo.license?.name || 'ingen'`
+- Nye filer: `server/middleware.js`, `server/validation.js`
+- Nye avhengigheter: `helmet`, `zod`
+- Rate limiting-respons er nå JSON med `{ error, message, statusCode }` (var tidligere ren streng)
+- Alle 106 tester passerer etter endringene
 ### Fase B: Kodeduplisering og arkitektur-refaktorering — ✅ Ferdig (2. mars 2026)
 - `packages/core/index.js` opprettet: eksporterer `analyzeRepository`, `detectProjectTypeFromMetadata`, `PROJECT_TYPE_LABELS`, `PRIORITY_RANK`, `meetsMinPriority`, `mergeAIRecommendations`, `RateLimiter`
 - `server/analyzer.js` og `packages/cli/src/analyzer.js` importerer nå fra core — ~270 LOC duplisering fjernet
