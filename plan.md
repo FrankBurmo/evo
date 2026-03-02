@@ -18,6 +18,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **Fase A komplett:** Sikkerhetshardening — `helmet()`, CORS-begrensning, global error-handler, zod-validering, `requireAuth`-middleware, timeout, graceful shutdown
 - **Fase C komplett:** Frontend-kvalitet og tilgjengelighet — a11y, performance, søk/sortering, skeleton loading, toast, Error Boundary
 - **Fase D komplett:** Testdekning ~25% → ~70% — 219 tester (21 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
+- **TypeScript Trinn 1 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `typecheck`-script — kun 1 typesjekk-feil gjenstår (`commander`)
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -425,6 +426,187 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
+### Fase H: TypeScript-konvertering 🟠 Høy prioritet
+
+**Mål:** Konvertere hele kodebasen fra JavaScript til TypeScript for sterkere type-sikkerhet, bedre IDE-støtte og enklere refaktorering fremover.
+
+**Kontekst — nåværende tilstand (Trinn 1, allerede gjort):**
+
+| Element | Status |
+|---------|--------|
+| `jsconfig.json` med `checkJs: true`, `strict: true`, `noImplicitAny: false` | ✅ |
+| `typescript` (^5.9.3) i devDependencies | ✅ |
+| `@types/express`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/cors`, `@types/supertest` | ✅ |
+| `server/types.d.ts` — Express `Request.token`-utvidelse | ✅ |
+| `"typecheck": "tsc --project jsconfig.json --noEmit"` i package.json | ✅ |
+| Antall typesjekk-feil: **1** (manglende `@types/commander` — se H2) | ✅ |
+
+**Migreringsstrategi:** Gradvis konvertering modul for modul med `allowJs: true` slik at `.js`- og `.ts`-filer kan eksistere side om side under overgangen. Starte med de mest «bladlike» modulene i avhengighetstreet og jobbe seg oppover.
+
+---
+
+#### H1 — tsconfig.json-infrastruktur (Trinn 2)
+
+- [ ] **H1a. `tsconfig.base.json`** — felles base: `target: ES2022`, `strict: true`, `esModuleInterop: true`, `resolveJsonModule: true`, `skipLibCheck: true`
+- [ ] **H1b. `tsconfig.json`** (backend/rot) — arver fra base, `module: CommonJS`, `moduleResolution: node`, `outDir: dist/server`, `rootDir: server`, `allowJs: true` for gradvis migrering
+- [ ] **H1c. Vite typesjekk** — `tsconfig.frontend.json` med `module: ESNext`, `moduleResolution: bundler`, `jsx: react-jsx`, kun for typesjekk (Vite kompilerer selv)
+- [ ] **H1d. `packages/core/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, `declaration: true` for generering av `.d.ts`-filer
+- [ ] **H1e. `packages/cli/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, peker på `rootDir: .`
+- [ ] **H1f. Oppdater `typecheck`-script** — kjør `tsc` mot alle tsconfig-filer i sekvens: base, frontend, core, cli
+
+**Estimat:** 0.5 dag
+
+---
+
+#### H2 — Fiks manglende type-avhengigheter
+
+- [ ] **H2a. `commander`** — `commander` v11+ har bundled typer; ingen `@types/commander` nødvendig. Fiks `packages/cli/bin/evo-scan.js` til å bruke `import` (eller legg til `// @ts-ignore` midlertidig)
+- [ ] **H2b. Verifiser alle `@types/*`** — bekreft at `@types/cors`, `@types/express`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/supertest` gir null resterende typesjekk-feil
+
+**Estimat:** 0.5 time
+
+---
+
+#### H3 — Konverter `packages/core/` (mest selvstendige modul)
+
+- [ ] **H3a.** Definer og eksporter felles interfaces i `packages/core/index.ts`:
+  - `Recommendation` — `{ type, title, description, priority, source?, codeInsights? }`
+  - `ProjectType` — union type: `'web-app' | 'android-app' | 'api' | 'library' | 'docs' | 'other'`
+  - `Repository` — referer Octokit-typer der det er mulig (`Awaited<ReturnType<Octokit['repos']['listForAuthenticatedUser']>['data'][0]>`)
+  - `AnalysisResult` — `{ recommendations: Recommendation[], projectType: ProjectType, score?: number }`
+  - `RateLimiterOptions` — konfigurasjonsobjekt for `RateLimiter`
+- [ ] **H3b.** `packages/core/index.js` → `packages/core/index.ts` med eksplisitte parametertypes og returtyper
+- [ ] **H3c.** Oppdater `packages/core/package.json` med `"types": "index.d.ts"`, `"scripts": { "build": "tsc" }`
+- [ ] **H3d.** Oppdater `tsconfig` til å kompilere core → `packages/core/dist/` og sjekk at server og CLI-imports fungerer
+
+**Estimat:** 1 dag
+
+---
+
+#### H4 — Utvid `server/types.d.ts` til full domenetype-definisjon
+
+- [ ] **H4a. ScanState og tilknyttede typer:**
+  - `ScanStatus` — `'idle' | 'running' | 'completed' | 'error'`
+  - `ScanRepoResult` — `{ repo: string, owner: string, recommendations: Recommendation[], issuesCreated?: number }`
+  - `ScanState` — `{ status: ScanStatus, progress: number, results: ScanRepoResult[], error?: string, startedAt?: Date }`
+- [ ] **H4b. Issue-typer:**
+  - `IssueCreateParams` — `{ owner: string, repo: string, title: string, body: string, labels?: string[] }`
+  - `IssueCreateResult` — `{ id: number, url: string, number: number }`
+- [ ] **H4c. Analyse-typer:**
+  - `DeepInsights` — `{ fileTree?: string[], hasTests?: boolean, hasCI?: boolean, ... }`
+  - `AIAnalysisResult` — `{ recommendations: Recommendation[], summary?: string, model?: string }`
+  - `FullAnalysisResult` — `{ recommendations: Recommendation[], deepInsights?: DeepInsights, aiSummary?: string }`
+- [ ] **H4d. Gjenbruk fra @evo/core** — importer `Recommendation`, `ProjectType`, `AnalysisResult` i types.d.ts
+
+**Estimat:** 0.5 dag
+
+---
+
+#### H5 — Konverter `server/` til TypeScript (fil for fil)
+
+Konverteringsrekkefølge etter avhengighetstre — minst til størst:
+
+- [ ] **H5a. `server/github.ts`** — `getOctokit()`, `extractToken()`, `assignCopilotToIssue()` med eksplisitte retur-typer
+- [ ] **H5b. `server/middleware.ts`** — `requireAuth`, `errorHandler`, `notFoundHandler` med `RequestHandler`/`ErrorRequestHandler`-typer
+- [ ] **H5c. `server/validation.ts`** — Zod-skjemaer med infererte typer (`z.infer<typeof schema>`) + `validate()`-middleware
+- [ ] **H5d. `server/project-detector.ts`** — returner `ProjectType` fra `@evo/core`
+- [ ] **H5e. `server/file-analyzer.ts`** — typer for `fetchRepoTree()`, `analyzeFiles()`
+- [ ] **H5f. `server/recommendation-engine.ts`** — returner `Recommendation[]`
+- [ ] **H5g. `server/analyzer.ts`** — fasade-re-eksport (trivielt etter H5d–f)
+- [ ] **H5h. `server/copilot-client.ts`** — returner `AIAnalysisResult`, typer for prompt-parametere
+- [ ] **H5i. `server/templates/*.ts`** — 5 filer; `buildGuardrailsIssueBody()` etc. med `(rec: Recommendation) => string`-typer
+- [ ] **H5j. `server/services/issue-service.ts`** — `createTemplateIssue()` med `IssueCreateParams`/`IssueCreateResult`
+- [ ] **H5k. `server/services/analysis-service.ts`** — `analyzeRepoFull()` med `FullAnalysisResult`
+- [ ] **H5l. `server/services/scan-service.ts`** — `ScanState`-type gjennom hele tjenesten
+- [ ] **H5m. `server/routes/issues.ts`** — Express `Router` med typede `req.body` (via Zod-inference)
+- [ ] **H5n. `server/routes/repos.ts`** — typede params og query
+- [ ] **H5o. `server/routes/scan.ts`** — tynn HTTP-lag med typede responser
+- [ ] **H5p. `server/index.ts`** — oppstartsmodul, `Application`-type
+
+**Estimat:** 2–3 dager
+
+---
+
+#### H6 — Konverter `packages/cli/` til TypeScript
+
+- [ ] **H6a. `packages/cli/src/analyzer.ts`** — importer `Recommendation`, `ProjectType` fra `@evo/core`
+- [ ] **H6b. `packages/cli/src/copilot.ts`** — `analyzeWithAI()` med `AIAnalysisResult`-returtype
+- [ ] **H6c. `packages/cli/src/issues.ts`** — `createIssue()` med `IssueCreateParams`-type
+- [ ] **H6d. `packages/cli/src/output.ts`** — `printResults()` med typede parametre
+- [ ] **H6e. `packages/cli/src/scanner.ts`** — `Scanner`-klassen med full typesetting
+- [ ] **H6f. `packages/cli/bin/evo-scan.ts`** — Commander.js-program (bundled types siden v8)
+- [ ] **H6g.** Oppdater `packages/cli/package.json` `main`/`bin` til `dist/`-output eller bruk `tsx` for direkte kjøring
+
+**Estimat:** 1 dag
+
+---
+
+#### H7 — Konverter `src/` (React frontend) til TypeScript
+
+- [ ] **H7a.** `src/main.jsx` → `src/main.tsx`
+- [ ] **H7b.** `src/App.jsx` → `src/App.tsx` — `AppProps` (ingen), state-typer
+- [ ] **H7c.** Alle komponenter `.jsx` → `.tsx` med eksplisitte `Props`-interfaces:
+  - `Dashboard.tsx` — `DashboardProps`
+  - `Header.tsx` — `HeaderProps`
+  - `RepositoryCard.tsx` — `RepositoryCardProps` (bruker `Repository`-type fra `@evo/core`)
+  - `AgentModal.tsx` — `AgentModalProps`
+  - `ConfigurablePanel.tsx` — `ConfigurablePanelProps` med generisk item-type
+  - `ScanControl.tsx`, `ScanOptions.tsx`, `ScanProgress.tsx`, `ScanResults.tsx`, `ScanRepoItem.tsx`
+  - `SkeletonCard.tsx`, `Toast.tsx`, `ErrorBoundary.tsx`
+- [ ] **H7d.** `src/hooks/useLocalStorage.ts` — generisk hook: `useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>]`
+- [ ] **H7e.** `src/components/panelConfigs.ts` — `PanelConfig`-interface med strengt typede `items`
+- [ ] **H7f.** Verifiser at Vite håndterer `.tsx` korrekt (allerede støttet via `@vitejs/plugin-react`)
+
+**Estimat:** 1.5 dag
+
+---
+
+#### H8 — Bygg-oppdateringer
+
+- [ ] **H8a. Backend dev:** Installer `tsx` (`npm i -D tsx`) — erstatter `node server/index.js` med `tsx server/index.ts`; raskere enn `ts-node`
+- [ ] **H8b. Backend prod:** `tsc -p tsconfig.json` → kompilerer til `dist/server/`, `npm start` kjører `node dist/server/index.js`
+- [ ] **H8c. CLI:** Bruk `tsx` for utvikling, `tsc` for produksjonsbygg; oppdater `bin/evo-scan.js` shebang til å bruke `tsx` eller peik på kompilert `.js`
+- [ ] **H8d.** Oppdater `package.json` scripts: `"dev": "tsx server/index.ts"`, `"build:server": "tsc -p tsconfig.json"`
+- [ ] **H8e.** Legg til `tsc --noEmit` i GitHub Actions CI-workflow (`.github/workflows/`) for typesjekk ved PR
+
+**Estimat:** 0.5 dag
+
+---
+
+#### H9 — Strengere typesjekk (sluttfase)
+
+- [ ] **H9a.** Hev `noImplicitAny: true` i alle tsconfigs (var `false` i jsconfig.json for Trinn 1 — går bra nå som alle parametere er eksplisitt typet)
+- [ ] **H9b.** Legg til `noUncheckedIndexedAccess: true` — avdekker potensielle runtime-feil ved array/object-indeksering
+- [ ] **H9c.** Fjern `allowJs: true` fra backend/CLI/core tsconfigs etter fullstendig konvertering
+- [ ] **H9d.** `jsconfig.json` → fjernes eller reduseres til kun å dekke config-filer som ikke er en del av et tsconfig-scope (f.eks. `vite.config.ts`)
+- [ ] **H9e.** Vurder `exactOptionalPropertyTypes: true` for å kreve eksplisitt `undefined` i optional properties
+
+**Estimat:** 0.5 dag
+
+---
+
+#### H10 — Konverter tester til TypeScript
+
+- [ ] **H10a.** Backend-tester: `server/**/*.test.js` → `.test.ts`
+- [ ] **H10b.** CLI-tester: `packages/cli/src/*.test.js` → `.test.ts`, `packages/core/core.test.js` → `.test.ts`
+- [ ] **H10c.** Frontend-tester: `src/test/*.test.jsx` → `.test.tsx`
+- [ ] **H10d.** Oppdater `vitest.backend.config.js` og rot-vitest-config til å inkludere `.ts`/`.tsx`-filer
+- [ ] **H10e.** Bekreft at alle 219 tester fortsatt passerer etter konvertering
+
+**Estimat:** 1 dag
+
+---
+
+**Samlet estimat Fase H:** 7–9 dager | **Risiko:** Middels (mange filer berøres, men `allowJs` gjør det trygt å gå gradvis)
+
+**Anbefalte milepæler:**
+1. H1 + H2 + H3: Infrastruktur + core — kodebasen typesjekker mot nye tsconfigs, null feil
+2. H4 + H5: Full server-side TypeScript — backend er 100 % `.ts`
+3. H6 + H7: CLI og frontend konvertert — hele kodebasen er TypeScript
+4. H8 + H9 + H10: Bygg, strengere sjekk, tester — produksjonsklar TypeScript-kodebase
+
+---
+
 ## Oppsummering — Prioritert backlog-tabell
 
 | # | Oppgave | Fase | Prioritet | Status | Estimat |
@@ -463,6 +645,16 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 | F4 | Frontend neste nivå (router, virtualisering) | F | 🔵 Nice-to-have | ❌ | Løpende |
 | F5 | Skalerbarhet (persistent state, workers) | F | 🔵 Nice-to-have | ❌ | Løpende |
 | F6 | Integrasjoner (webhooks, notifikasjoner) | F | 🔵 Nice-to-have | ❌ | Løpende |
+| H1 | tsconfig-infrastruktur (base, server, frontend, core, cli) | H | 🟠 Høy | ❌ | 0.5d |
+| H2 | Fiks manglende type-avhengigheter (`commander`) | H | 🟠 Høy | ❌ | 0.5t |
+| H3 | Konverter `packages/core/` → `index.ts` + interfaces | H | 🟠 Høy | ❌ | 1d |
+| H4 | Utvid `server/types.d.ts` til full domenetype-definisjon | H | 🟠 Høy | ❌ | 0.5d |
+| H5 | Konverter `server/` fil for fil (16 filer) | H | 🟠 Høy | ❌ | 2–3d |
+| H6 | Konverter `packages/cli/` (6 filer) | H | 🟡 Middels | ❌ | 1d |
+| H7 | Konverter `src/` React-frontend (14 .jsx → .tsx) | H | 🟡 Middels | ❌ | 1.5d |
+| H8 | Bygg-oppdateringer (`tsx` dev, `tsc` prod, CI) | H | 🟡 Middels | ❌ | 0.5d |
+| H9 | Strengere typesjekk (`noImplicitAny`, `noUncheckedIndexedAccess`) | H | 🟢 Lav | ❌ | 0.5d |
+| H10 | Konverter tester til TypeScript (21 testfiler) | H | 🟢 Lav | ❌ | 1d |
 
 ---
 
