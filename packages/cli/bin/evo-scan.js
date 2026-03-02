@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+// @ts-ignore — commander v11+ har bundled typer; fikses i H2a ved ESM-konvertering
 const { program } = require('commander');
 const { runScan } = require('../src/scanner');
 const { printBanner, printError, printInfo } = require('../src/output');

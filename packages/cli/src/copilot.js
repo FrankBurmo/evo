@@ -67,7 +67,7 @@ Fokuser på dypere tekniske og strategiske forbedringer som ikke allerede er dek
     throw new Error(`Copilot API feil (${response.status}): ${text.slice(0, 200)}`);
   }
 
-  const data = await response.json();
+  const data = /** @type {any} */ (await response.json());
   const content = data.choices?.[0]?.message?.content || '';
 
   // Parse JSON fra svaret

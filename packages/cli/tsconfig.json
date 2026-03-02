@@ -1,0 +1,17 @@
+{
+  // packages/cli-konfigurasjon — evo-scan CLI-verktøy.
+  // Bruker CommonJS + node-moduleResolution for korrekt oppdagelse av
+  // bundled typer i commander v8+ (løser H2a commander-feilen).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2022"]
+
+    // ─── Fremtidig bygg-output (aktiveres i Fase H6) ───────────────────────
+    // "outDir": "dist",
+    // "rootDir": "."
+  },
+  "include": ["src/**/*.js", "bin/**/*.js"],
+  "exclude": ["src/**/*.test.js", "src/**/*.spec.js", "node_modules", "dist"]
+}

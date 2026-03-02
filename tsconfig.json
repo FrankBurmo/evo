@@ -1,0 +1,30 @@
+{
+  // Backend-konfigurasjon — brukes av `tsc -p tsconfig.json --noEmit` og
+  // av VS Code for server/**- og packages/core/**-filer.
+  // Arver fra tsconfig.base.json og overstyrer innstillinger for Node.js/CJS.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // ─── Node.js CommonJS-miljø ────────────────────────────────────────────
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+
+    // ─── Fremtidig bygg-output (aktiveres i Fase H8) ───────────────────────
+    // "outDir": "dist/server",
+    // "rootDir": "server"
+  },
+  "include": [
+    "server/**/*.js",
+    "server/**/*.d.ts",
+    "packages/core/**/*.js",
+    "vitest.backend.config.js"
+  ],
+  "exclude": [
+    "server/**/*.test.js",
+    "server/**/*.spec.js",
+    "packages/**/*.test.js",
+    "packages/**/*.spec.js",
+    "node_modules",
+    "dist"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  // Frontend-konfigurasjon — brukes av `tsc -p tsconfig.frontend.json --noEmit`
+  // for typesjekk av React-komponentene. Vite håndterer selve kompileringen;
+  // denne filen er kun for statisk typeanalyse.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // ─── Vite/ESM-miljø ────────────────────────────────────────────────────
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // ─── React JSX ─────────────────────────────────────────────────────────
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/**/*.js",
+    "src/**/*.jsx"
+  ],
+  "exclude": [
+    "src/**/*.test.js",
+    "src/**/*.test.jsx",
+    "src/**/*.spec.js",
+    "src/**/*.spec.jsx",
+    "src/test/**",
+    "node_modules",
+    "dist"
+  ]
+}

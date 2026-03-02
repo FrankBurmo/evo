@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "test:backend": "node --experimental-vm-modules node_modules/.bin/vitest run --config vitest.backend.config.js",
     "test:all": "vitest run && node --experimental-vm-modules node_modules/.bin/vitest run --config vitest.backend.config.js",
-    "typecheck": "tsc --project jsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.frontend.json --noEmit && tsc -p packages/core/tsconfig.json --noEmit && tsc -p packages/cli/tsconfig.json --noEmit"
   },
   "repository": {
     "type": "git",

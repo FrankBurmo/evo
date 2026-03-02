@@ -18,7 +18,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **Fase A komplett:** Sikkerhetshardening — `helmet()`, CORS-begrensning, global error-handler, zod-validering, `requireAuth`-middleware, timeout, graceful shutdown
 - **Fase C komplett:** Frontend-kvalitet og tilgjengelighet — a11y, performance, søk/sortering, skeleton loading, toast, Error Boundary
 - **Fase D komplett:** Testdekning ~25% → ~70% — 219 tester (21 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
-- **TypeScript Trinn 1 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `typecheck`-script — kun 1 typesjekk-feil gjenstår (`commander`)
+- **TypeScript Trinn 1+2 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `tsconfig.base.json`, `tsconfig.json` (backend/CommonJS), `tsconfig.frontend.json` (ESNext/bundler), `packages/core/tsconfig.json`, `packages/cli/tsconfig.json` — `typecheck`-script kjører alle 4 i sekvens, **0 feil**
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -445,16 +445,18 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-#### H1 — tsconfig.json-infrastruktur (Trinn 2)
+#### H1 — tsconfig.json-infrastruktur (Trinn 2) ✅ Ferdig
 
-- [ ] **H1a. `tsconfig.base.json`** — felles base: `target: ES2022`, `strict: true`, `esModuleInterop: true`, `resolveJsonModule: true`, `skipLibCheck: true`
-- [ ] **H1b. `tsconfig.json`** (backend/rot) — arver fra base, `module: CommonJS`, `moduleResolution: node`, `outDir: dist/server`, `rootDir: server`, `allowJs: true` for gradvis migrering
-- [ ] **H1c. Vite typesjekk** — `tsconfig.frontend.json` med `module: ESNext`, `moduleResolution: bundler`, `jsx: react-jsx`, kun for typesjekk (Vite kompilerer selv)
-- [ ] **H1d. `packages/core/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, `declaration: true` for generering av `.d.ts`-filer
-- [ ] **H1e. `packages/cli/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, peker på `rootDir: .`
-- [ ] **H1f. Oppdater `typecheck`-script** — kjør `tsc` mot alle tsconfig-filer i sekvens: base, frontend, core, cli
+- [x] **H1a. `tsconfig.base.json`** — felles base: `target: ES2022`, `strict: true`, `esModuleInterop: true`, `resolveJsonModule: true`, `skipLibCheck: true`
+- [x] **H1b. `tsconfig.json`** (backend/rot) — arver fra base, `module: CommonJS`, `moduleResolution: node`, `allowJs: true` for gradvis migrering
+- [x] **H1c. Vite typesjekk** — `tsconfig.frontend.json` med `module: ESNext`, `moduleResolution: bundler`, `jsx: react-jsx`, kun for typesjekk (Vite kompilerer selv)
+- [x] **H1d. `packages/core/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, `declaration: true` (aktiveres i H3)
+- [x] **H1e. `packages/cli/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, peker på `rootDir: .`
+- [x] **H1f. Oppdater `typecheck`-script** — kjører `tsc` mot alle tsconfig-filer i sekvens: `tsconfig.json && tsconfig.frontend.json && packages/core && packages/cli` — **0 feil**
 
-**Estimat:** 0.5 dag
+**Bonus-fikset i H1:**
+- `server/copilot-client.js:387` og `packages/cli/src/copilot.js:71` — `response.json()` tvungent til `any` (`/** @type {any} */`) siden `@types/node` v18+ returnerer `unknown`
+- `packages/cli/bin/evo-scan.js:6` — `// @ts-ignore` på `require('commander')` midlertidig (løses i H2a)
 
 ---
 

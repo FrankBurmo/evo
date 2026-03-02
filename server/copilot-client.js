@@ -383,7 +383,7 @@ async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
     throw error;
   }
 
-  const data = await response.json();
+  const data = /** @type {any} */ (await response.json());
   const content = data.choices?.[0]?.message?.content || '';
 
   // Parse JSON fra svaret — støtter både rent JSON og JSON i markdown-blokker

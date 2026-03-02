@@ -1,0 +1,27 @@
+{
+  // Delt base-konfigurasjon — arves av tsconfig.json, tsconfig.frontend.json
+  // og packages/*/tsconfig.json. Inneholder innstillinger som er felles for
+  // alle deler av kodebasen.
+  "compilerOptions": {
+    // ─── Kompilerings-mål ──────────────────────────────────────────────────
+    "target": "ES2022",
+
+    // ─── Strenghetsnivå ────────────────────────────────────────────────────
+    // strict: true aktiverer strictNullChecks, strictFunctionTypes osv.
+    // noImplicitAny: false — JS-kodebase uten annotasjoner på alle parametre;
+    // aktiveres gradvis i løpet av TypeScript-konverteringen (Fase H).
+    "strict": true,
+    "noImplicitAny": false,
+
+    // ─── JavaScript-kompatibilitet (gradvis migrering) ──────────────────────
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    // ─── Diverse ───────────────────────────────────────────────────────────
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  }
+}
