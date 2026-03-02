@@ -1,6 +1,3 @@
-/* global vi, describe, it, expect, beforeEach */
-'use strict';
-
 const { requireAuth, errorHandler, notFoundHandler } = require('./middleware');
 
 // Hjelpefunksjon for å lage mock req/res

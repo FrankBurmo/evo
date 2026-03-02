@@ -8,14 +8,11 @@
 
     // ─── Strenghetsnivå ────────────────────────────────────────────────────
     // strict: true aktiverer strictNullChecks, strictFunctionTypes osv.
-    // noImplicitAny: false — JS-kodebase uten annotasjoner på alle parametre;
-    // aktiveres gradvis i løpet av TypeScript-konverteringen (Fase H).
+    // Hele kodebasen er TypeScript etter H5–H7, så noImplicitAny kan nå være true.
     "strict": true,
-    "noImplicitAny": false,
+    "noImplicitAny": true,
 
-    // ─── JavaScript-kompatibilitet (gradvis migrering) ──────────────────────
-    "allowJs": true,
-    "checkJs": true,
+    // ─── Generelt ─────────────────────────────────────────────────────────
     "noEmit": true,
 
     // ─── Diverse ───────────────────────────────────────────────────────────

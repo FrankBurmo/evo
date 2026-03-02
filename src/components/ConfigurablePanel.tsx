@@ -1,23 +1,28 @@
 import React, { useState } from 'react';
 import useLocalStorage from '../hooks/useLocalStorage';
+import type { RepoData, PanelItem, PanelConfig } from '../types';
+
+interface TriggerResult {
+  issueUrl?: string;
+  note?: string;
+  error?: string;
+}
+
+type TriggerStateMap = Record<string, 'loading' | 'success' | 'error'>;
+type TriggerResultMap = Record<string, TriggerResult>;
+
+interface PanelItemWithEnabled extends PanelItem {
+  enabled: boolean;
+}
+
+type ConfigurablePanelProps = PanelConfig & {
+  repos: RepoData[];
+  token: string;
+};
 
 /**
  * ConfigurablePanel — generisk panel-komponent som erstatter
  * GuardrailsPanel, ProductDevelopmentPanel og EngineeringVelocityPanel.
- *
- * Props:
- *   title        — Paneltittel med emoji, f.eks. "🛡️ Guardrails"
- *   description  — Beskrivelse vist under overskriften
- *   items        — Array av { id, name, description, icon, category, canTrigger, defaultEnabled }
- *   storageKey   — localStorage-nøkkel for å lagre toggletilstand
- *   apiPrefix    — API-endepunktprefix, f.eks. "/api/guardrails"
- *   colorScheme  — { accent, accentBg, accentBorder, btnGradient, btnShadow, categoryPrefix }
- *   repos        — Array av repoData-objekter
- *   token        — GitHub PAT
- *   triggerTitle — Overskrift for trigger-seksjonen
- *   triggerDesc  — Beskrivelse for trigger-seksjonen
- *   triggerBtnLabel — Label for trigger-knappen, f.eks. "🚀 Kjør analyse"
- *   hasActionSelect — Om panelet har et valg mellom flere handlinger (true for multi-action paneler)
  */
 function ConfigurablePanel({
   title,
@@ -32,80 +37,86 @@ function ConfigurablePanel({
   triggerDesc,
   triggerBtnLabel = '🚀 Kjør analyse',
   hasActionSelect = false,
-}) {
-  const [savedConfig, setSavedConfig] = useLocalStorage(storageKey, null);
+}: ConfigurablePanelProps): React.JSX.Element {
+  const [savedConfig, setSavedConfig] = useLocalStorage<Record<string, boolean> | null>(
+    storageKey,
+    null,
+  );
 
-  const [items, setItems] = useState(() => {
+  const [items, setItems] = useState<PanelItemWithEnabled[]>(() => {
     if (savedConfig) {
-      return defaultItems.map(item => ({
+      return defaultItems.map((item) => ({
         ...item,
-        enabled: savedConfig[item.id] !== undefined ? savedConfig[item.id] : item.defaultEnabled,
+        enabled:
+          savedConfig[item.id] !== undefined ? savedConfig[item.id] : item.defaultEnabled,
       }));
     }
-    return defaultItems.map(item => ({ ...item, enabled: item.defaultEnabled }));
+    return defaultItems.map((item) => ({ ...item, enabled: item.defaultEnabled }));
   });
 
-  const [triggerState, setTriggerState] = useState({});
-  const [triggerResults, setTriggerResults] = useState({});
+  const [triggerState, setTriggerState] = useState<TriggerStateMap>({});
+  const [triggerResults, setTriggerResults] = useState<TriggerResultMap>({});
   const [selectedRepo, setSelectedRepo] = useState('');
   const [selectedAction, setSelectedAction] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const toggleItem = (id) => {
-    setItems(prev => {
-      const updated = prev.map(item =>
-        item.id === id ? { ...item, enabled: !item.enabled } : item
+  const toggleItem = (id: string) => {
+    setItems((prev) => {
+      const updated = prev.map((item) =>
+        item.id === id ? { ...item, enabled: !item.enabled } : item,
       );
-      const config = {};
-      updated.forEach(item => { config[item.id] = item.enabled; });
+      const config: Record<string, boolean> = {};
+      updated.forEach((item) => {
+        config[item.id] = item.enabled;
+      });
       setSavedConfig(config);
       return updated;
     });
   };
 
-  const triggerAction = async (actionId, repoFullName) => {
+  const triggerAction = async (actionId: string, repoFullName: string) => {
     if (!repoFullName || (!actionId && hasActionSelect)) return;
     const [owner, repoName] = repoFullName.split('/');
 
-    // For single-action panels (like Guardrails), the actionId is the triggerable item's id
-    const effectiveActionId = actionId || items.find(i => i.canTrigger)?.id;
+    const effectiveActionId = actionId || items.find((i) => i.canTrigger)?.id;
+    if (!effectiveActionId) return;
+
     const key = hasActionSelect ? `${effectiveActionId}:${repoFullName}` : repoFullName;
 
-    setTriggerState(prev => ({ ...prev, [key]: 'loading' }));
+    setTriggerState((prev) => ({ ...prev, [key]: 'loading' }));
 
     try {
-      const endpoint = hasActionSelect
-        ? `${apiPrefix}/${effectiveActionId}`
-        : `${apiPrefix}/${effectiveActionId}`;
-
+      const endpoint = `${apiPrefix}/${effectiveActionId}`;
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ owner, repo: repoName }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as TriggerResult;
 
       if (!response.ok) {
-        throw new Error(data.message || 'Noe gikk galt');
+        throw new Error(data.error || 'Noe gikk galt');
       }
 
-      setTriggerState(prev => ({ ...prev, [key]: 'success' }));
-      setTriggerResults(prev => ({ ...prev, [key]: data }));
-    } catch (/** @type {any} */ err) {
-      setTriggerState(prev => ({ ...prev, [key]: 'error' }));
-      setTriggerResults(prev => ({ ...prev, [key]: { error: err.message } }));
+      setTriggerState((prev) => ({ ...prev, [key]: 'success' }));
+      setTriggerResults((prev) => ({ ...prev, [key]: data }));
+    } catch (err: unknown) {
+      setTriggerState((prev) => ({ ...prev, [key]: 'error' }));
+      setTriggerResults((prev) => ({
+        ...prev,
+        [key]: { error: err instanceof Error ? err.message : String(err) },
+      }));
     }
   };
 
-  const enabledCount = items.filter(i => i.enabled).length;
-  const enabledTriggerable = items.filter(i => i.enabled && i.canTrigger);
-  const showTrigger = hasActionSelect
-    ? enabledTriggerable.length > 0
-    : enabledTriggerable.length > 0;
+  const enabledCount = items.filter((i) => i.enabled).length;
+  const enabledTriggerable = items.filter((i) => i.enabled && i.canTrigger);
+
+  const showTrigger = enabledTriggerable.length > 0;
 
   const currentKey = hasActionSelect
     ? `${selectedAction}:${selectedRepo}`
@@ -124,7 +135,9 @@ function ConfigurablePanel({
       >
         <span className="panel__header-left">
           <span className="panel__title">{title}</span>
-          <span className="panel__badge">{enabledCount}/{items.length} aktive</span>
+          <span className="panel__badge">
+            {enabledCount}/{items.length} aktive
+          </span>
         </span>
         <span className="panel__toggle-icon" aria-hidden="true">
           {isExpanded ? '▲' : '▼'}
@@ -136,7 +149,7 @@ function ConfigurablePanel({
           <p className="panel__description">{description}</p>
 
           <div className="panel__list">
-            {items.map(item => (
+            {items.map((item) => (
               <div
                 key={item.id}
                 className={`panel__item ${item.enabled ? 'enabled' : 'disabled'}`}
@@ -174,11 +187,11 @@ function ConfigurablePanel({
                 {hasActionSelect && (
                   <select
                     value={selectedAction}
-                    onChange={e => setSelectedAction(e.target.value)}
+                    onChange={(e) => setSelectedAction(e.target.value)}
                     className="repo-select"
                   >
                     <option value="">Velg analyse...</option>
-                    {enabledTriggerable.map(item => (
+                    {enabledTriggerable.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.icon} {item.name}
                       </option>
@@ -188,11 +201,11 @@ function ConfigurablePanel({
 
                 <select
                   value={selectedRepo}
-                  onChange={e => setSelectedRepo(e.target.value)}
+                  onChange={(e) => setSelectedRepo(e.target.value)}
                   className="repo-select"
                 >
                   <option value="">Velg repository...</option>
-                  {repos.map(r => (
+                  {repos.map((r) => (
                     <option key={r.repo.fullName} value={r.repo.fullName}>
                       {r.repo.fullName}
                     </option>
@@ -215,32 +228,40 @@ function ConfigurablePanel({
               </div>
 
               {/* Status messages */}
-              {selectedRepo && (hasActionSelect ? selectedAction : true) && (() => {
-                const state = triggerState[currentKey];
-                const result = triggerResults[currentKey];
+              {selectedRepo &&
+                (hasActionSelect ? selectedAction : true) &&
+                (() => {
+                  const state = triggerState[currentKey];
+                  const result = triggerResults[currentKey];
 
-                if (state === 'success') {
-                  return (
-                    <div className="trigger-result success">
-                      <span>✅ Issue opprettet!</span>
-                      {result?.issueUrl && (
-                        <a href={result.issueUrl} target="_blank" rel="noopener noreferrer">
-                          🔗 Åpne issue på GitHub
-                        </a>
-                      )}
-                      {result?.note && <p className="trigger-note">{result.note}</p>}
-                    </div>
-                  );
-                }
-                if (state === 'error') {
-                  return (
-                    <div className="trigger-result error">
-                      <span>❌ {result?.error || 'Noe gikk galt'}</span>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
+                  if (state === 'success') {
+                    return (
+                      <div className="trigger-result success">
+                        <span>✅ Issue opprettet!</span>
+                        {result?.issueUrl && (
+                          <a
+                            href={result.issueUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            🔗 Åpne issue på GitHub
+                          </a>
+                        )}
+                        {result?.note && (
+                          <p className="trigger-note">{result.note}</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (state === 'error') {
+                    return (
+                      <div className="trigger-result error">
+                        <span>❌ {result?.error || 'Noe gikk galt'}</span>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
             </div>
           )}
         </div>

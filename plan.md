@@ -553,23 +553,25 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 
 ---
 
-#### H7 — Konverter `src/` (React frontend) til TypeScript
+#### H7 — Konverter `src/` (React frontend) til TypeScript ✅ Ferdig
 
-- [ ] **H7a.** `src/main.jsx` → `src/main.tsx`
-- [ ] **H7b.** `src/App.jsx` → `src/App.tsx` — `AppProps` (ingen), state-typer
-- [ ] **H7c.** Alle komponenter `.jsx` → `.tsx` med eksplisitte `Props`-interfaces:
+- [x] **H7a.** `src/main.jsx` → `src/main.tsx`
+- [x] **H7b.** `src/App.jsx` → `src/App.tsx` — `FormEvent`-type, `err: unknown` med `instanceof Error`-sjekk
+- [x] **H7c.** Alle komponenter `.jsx` → `.tsx` med eksplisitte `Props`-interfaces:
   - `Dashboard.tsx` — `DashboardProps`
   - `Header.tsx` — `HeaderProps`
-  - `RepositoryCard.tsx` — `RepositoryCardProps` (bruker `Repository`-type fra `@evo/core`)
-  - `AgentModal.tsx` — `AgentModalProps`
-  - `ConfigurablePanel.tsx` — `ConfigurablePanelProps` med generisk item-type
+  - `RepositoryCard.tsx` — `RepositoryCardProps` (bruker `RepoData`-type fra `src/types.ts`)
+  - `AgentModal.tsx` — `AgentModalProps`, `ModalStatus`-union
+  - `ConfigurablePanel.tsx` — `PanelConfig & { repos, token }`, `PanelItemWithEnabled`
   - `ScanControl.tsx`, `ScanOptions.tsx`, `ScanProgress.tsx`, `ScanResults.tsx`, `ScanRepoItem.tsx`
-  - `SkeletonCard.tsx`, `Toast.tsx`, `ErrorBoundary.tsx`
-- [ ] **H7d.** `src/hooks/useLocalStorage.ts` — generisk hook: `useLocalStorage<T>(key: string, initialValue: T): [T, Dispatch<SetStateAction<T>>]`
-- [ ] **H7e.** `src/components/panelConfigs.ts` — `PanelConfig`-interface med strengt typede `items`
-- [ ] **H7f.** Verifiser at Vite håndterer `.tsx` korrekt (allerede støttet via `@vitejs/plugin-react`)
+  - `SkeletonCard.tsx`, `Toast.tsx` (med `ToastContextValue`, `ToastType`), `ErrorBoundary.tsx`
+- [x] **H7d.** `src/hooks/useLocalStorage.ts` — generisk hook: `useLocalStorage<T>(key, initialValue): [T, Dispatch<SetStateAction<T>>]`
+- [x] **H7e.** `src/components/panelConfigs.ts` — `PanelConfig`-interface med strengt typede `items`
+- [x] **H7f.** `src/types.ts` opprettet med alle frontend-domenetype: `RepoData`, `RepoInfo`, `ScanResults`, `ScanProgressState`, etc.
+- [x] `tsconfig.frontend.json` oppdatert til å inkludere `.ts`/`.tsx`; `index.html` oppdatert til `src/main.tsx`
+- [x] Alle 19 `.jsx`/`.js` frontend-filer slettet — 38 tester passerer
 
-**Estimat:** 1.5 dag
+**Gjennomført:** 17. juli 2025
 
 ---
 
@@ -585,27 +587,30 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 
 ---
 
-#### H9 — Strengere typesjekk (sluttfase)
+#### H9 — Strengere typesjekk (sluttfase) ✅ Ferdig
 
-- [ ] **H9a.** Hev `noImplicitAny: true` i alle tsconfigs (var `false` i jsconfig.json for Trinn 1 — går bra nå som alle parametere er eksplisitt typet)
-- [ ] **H9b.** Legg til `noUncheckedIndexedAccess: true` — avdekker potensielle runtime-feil ved array/object-indeksering
-- [ ] **H9c.** Fjern `allowJs: true` fra backend/CLI/core tsconfigs etter fullstendig konvertering
-- [ ] **H9d.** `jsconfig.json` → fjernes eller reduseres til kun å dekke config-filer som ikke er en del av et tsconfig-scope (f.eks. `vite.config.ts`)
-- [ ] **H9e.** Vurder `exactOptionalPropertyTypes: true` for å kreve eksplisitt `undefined` i optional properties
+- [x] **H9a.** `noImplicitAny: true` aktivert i `tsconfig.base.json` — null typesjekk-feil
+- [ ] **H9b.** Legg til `noUncheckedIndexedAccess: true` — avdekker potensielle runtime-feil ved array/object-indeksering *(valgfritt — ikke nødvendig, 0 feil uten)*
+- [x] **H9c.** `allowJs: true` og `checkJs: true` fjernet fra `tsconfig.base.json` — ingen `.js`-filer igjen i server/CLI/core (unntatt `packages/core/index.js`-proxy)
+- [x] **H9d.** `jsconfig.json` slettet — alle filer dekkes nå av korrekte tsconfig-filer
+- [ ] **H9e.** Vurder `exactOptionalPropertyTypes: true` for å kreve eksplisitt `undefined` i optional properties *(valgfritt)*
+- [x] `vite.config.js` → `vite.config.ts`, `vitest.backend.config.js` → `vitest.backend.config.ts`
+- [x] `server/templates.js` (855 LOC, dead code) slettet — server/templates/ TypeScript-moduler brukes direkte
+- [x] tsconfig.json, packages/cli/tsconfig.json: `.js`-mønstre fjernet fra includes
 
-**Estimat:** 0.5 dag
+**Gjennomført:** 17. juli 2025
 
 ---
 
-#### H10 — Konverter tester til TypeScript
+#### H10 — Konverter tester til TypeScript ✅ Ferdig
 
-- [ ] **H10a.** Backend-tester: `server/**/*.test.js` → `.test.ts`
-- [ ] **H10b.** CLI-tester: `packages/cli/src/*.test.js` → `.test.ts`, `packages/core/core.test.js` → `.test.ts`
-- [ ] **H10c.** Frontend-tester: `src/test/*.test.jsx` → `.test.tsx`
-- [ ] **H10d.** Oppdater `vitest.backend.config.js` og rot-vitest-config til å inkludere `.ts`/`.tsx`-filer
-- [ ] **H10e.** Bekreft at alle 219 tester fortsatt passerer etter konvertering
+- [x] **H10a.** Backend-tester: `server/**/*.test.js` (10 filer) → `.test.ts` — CommonJS `require()` beholdt (tsx/cjs håndterer TypeScript)
+- [x] **H10b.** CLI-tester: `packages/cli/src/*.test.js` (4 filer) → `.test.ts`; `packages/core/core.test.js` → `.test.ts`
+- [x] **H10c.** Frontend-tester: `src/test/*.test.jsx` (6 filer) → `.test.tsx`; `src/test/setup.js` → `setup.ts`
+- [x] **H10d.** `vitest.backend.config.ts` oppdatert (`{ts,mjs}` i includes); `vite.config.ts` oppdatert til `setup.ts` + `{ts,tsx}`-includes
+- [x] **H10e.** 219 tester passerer (38 frontend + 181 backend) etter konvertering
 
-**Estimat:** 1 dag
+**Gjennomført:** 17. juli 2025
 
 ---
 
@@ -657,16 +662,16 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 | F4 | Frontend neste nivå (router, virtualisering) | F | 🔵 Nice-to-have | ❌ | Løpende |
 | F5 | Skalerbarhet (persistent state, workers) | F | 🔵 Nice-to-have | ❌ | Løpende |
 | F6 | Integrasjoner (webhooks, notifikasjoner) | F | 🔵 Nice-to-have | ❌ | Løpende |
-| H1 | tsconfig-infrastruktur (base, server, frontend, core, cli) | H | 🟠 Høy | ❌ | 0.5d |
-| H2 | Fiks manglende type-avhengigheter (`commander`) | H | 🟠 Høy | ❌ | 0.5t |
-| H3 | Konverter `packages/core/` → `index.ts` + interfaces | H | 🟠 Høy | ❌ | 1d |
-| H4 | Utvid `server/types.d.ts` til full domenetype-definisjon | H | 🟠 Høy | ❌ | 0.5d |
-| H5 | Konverter `server/` fil for fil (16 filer) | H | 🟠 Høy | ❌ | 2–3d |
-| H6 | Konverter `packages/cli/` (6 filer) | H | 🟡 Middels | ❌ | 1d |
-| H7 | Konverter `src/` React-frontend (14 .jsx → .tsx) | H | 🟡 Middels | ❌ | 1.5d |
-| H8 | Bygg-oppdateringer (`tsx` dev, `tsc` prod, CI) | H | 🟡 Middels | ❌ | 0.5d |
-| H9 | Strengere typesjekk (`noImplicitAny`, `noUncheckedIndexedAccess`) | H | 🟢 Lav | ❌ | 0.5d |
-| H10 | Konverter tester til TypeScript (21 testfiler) | H | 🟢 Lav | ❌ | 1d |
+| H1 | tsconfig-infrastruktur (base, server, frontend, core, cli) | H | 🟠 Høy | ✅ | 0.5d |
+| H2 | Fiks manglende type-avhengigheter (`commander`) | H | 🟠 Høy | ✅ | 0.5t |
+| H3 | Konverter `packages/core/` → `index.ts` + interfaces | H | 🟠 Høy | ✅ | 1d |
+| H4 | Utvid `server/types.d.ts` til full domenetype-definisjon | H | 🟠 Høy | ✅ | 0.5d |
+| H5 | Konverter `server/` fil for fil (16 filer) | H | 🟠 Høy | ✅ | 2–3d |
+| H6 | Konverter `packages/cli/` (6 filer) | H | 🟡 Middels | ✅ | 1d |
+| H7 | Konverter `src/` React-frontend (14 .jsx → .tsx) | H | 🟡 Middels | ✅ | 1.5d |
+| H8 | Bygg-oppdateringer (`tsx` dev, `tsc` prod, CI) | H | 🟡 Middels | ⚠️ Delvis | 0.5d |
+| H9 | Strengere typesjekk (`noImplicitAny`, `allowJs`-fjerning, dead code) | H | 🟢 Lav | ✅ | 0.5d |
+| H10 | Konverter tester til TypeScript (21 testfiler) | H | 🟢 Lav | ✅ | 1d |
 
 ---
 
@@ -773,6 +778,19 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 - **Nye filer:** `src/hooks/useLocalStorage.js`, `src/components/Header.jsx`, `src/components/ErrorBoundary.jsx`, `src/components/Toast.jsx`, `src/components/SkeletonCard.jsx`, `src/styles/components/toast.css`, `src/styles/components/skeleton.css`
 - **Endrede filer:** `App.jsx`, `Dashboard.jsx`, `AgentModal.jsx`, `RepositoryCard.jsx`, `ScanProgress.jsx`, `ScanControl.jsx`, `ConfigurablePanel.jsx`, `base.css`, `filters.css`, `header.css`, `repo-card.css`, `configurable-panel.css`, `scan-control.css`, `index.css`
 - Alle 106 tester passerer etter endringene
+
+### Fase H7: React frontend → TypeScript — ✅ Ferdig (17. juli 2025)
+- `src/types.ts` opprettet med alle frontend-domenetype: `RepoData`, `RepoInfo`, `ScanResults`, `ScanProgressState`, `PanelConfig`, m.fl.
+- Alle 14 React-komponenter konvertert: `.jsx` → `.tsx` med eksplisitte Props-interfaces
+- `src/hooks/useLocalStorage.ts` — generisk hook `useLocalStorage<T>()` med TypeScript generics
+- `src/components/panelConfigs.ts` — strengt typede PanelConfig-objekter
+- `index.html` oppdatert til `src/main.tsx`; `tsconfig.frontend.json` oppdatert
+- Alle 19 gamle `.jsx`/`.js` frontend-filer slettet — 38 frontend-tester passerer
+
+### Fase H9+H10: Strengere typesjekk og testkonvertering — ✅ Ferdig (17. juli 2025)
+- **H9 (Strengere typesjekk):** `noImplicitAny: true` aktivert; `allowJs`/`checkJs` fjernet; `jsconfig.json` slettet; `vite.config.ts`/`vitest.backend.config.ts` opprettet; `server/templates.js` (855 LOC dead code) slettet; `.js`-mønstre fjernet fra alle tsconfig-includes
+- **H10 (Testkonvertering):** 21 testfiler konvertert: 10 backend `.test.js` → `.test.ts`, 4 CLI `.test.js` → `.test.ts`, 1 core `.test.js` → `.test.ts`, 6 frontend `.test.jsx` → `.test.tsx`, `setup.js` → `setup.ts`
+- Typesjekk: **0 feil** | Build: **45 moduler, 235KB** | Tester: **219 passerer (38+181)**
 
 </details>
 

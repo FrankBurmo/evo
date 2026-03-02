@@ -3,7 +3,9 @@
  * Sentralisert data som brukes av ConfigurablePanel.
  */
 
-export const GUARDRAILS_CONFIG = {
+import type { PanelConfig } from '../types';
+
+export const GUARDRAILS_CONFIG: PanelConfig = {
   title: '🛡️ Guardrails',
   description:
     'Guardrails er automatiserte sjekker og handlinger som hjelper deg med å holde repoene dine i god form. Slå dem av eller på etter behov.',
@@ -65,7 +67,7 @@ export const GUARDRAILS_CONFIG = {
   ],
 };
 
-export const PRODUCT_DEV_CONFIG = {
+export const PRODUCT_DEV_CONFIG: PanelConfig = {
   title: '🚀 Produktutvikling',
   description:
     'Produktutviklingsverktøy som hjelper deg å forstå brukerbehov, identifisere markedsmuligheter og gjøre produktene dine mer verdifulle. Trigger en AI-agent som oppretter et GitHub-issue med detaljert analyse og konkrete forbedringsforslag.',
@@ -131,7 +133,7 @@ export const PRODUCT_DEV_CONFIG = {
   ],
 };
 
-export const ENGINEERING_VELOCITY_CONFIG = {
+export const ENGINEERING_VELOCITY_CONFIG: PanelConfig = {
   title: '⚡ Leveransekvalitet',
   description:
     'Leveransekvalitet handler om ingeniørteamets evne til å levere programvare raskt, pålitelig og bærekraftig. Basert på DORA-forskning og CHAOSS-rammeverket — trigger en AI-agent som oppretter et GitHub-issue med konkrete anbefalinger.',

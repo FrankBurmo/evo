@@ -1,31 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import type { Recommendation, RepoInfo } from '../types';
 
-function AgentModal({ recommendation, repo, token, onClose }) {
-  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+interface AgentModalProps {
+  recommendation: Recommendation;
+  repo: RepoInfo;
+  token: string;
+  onClose: () => void;
+}
+
+type ModalStatus = 'idle' | 'loading' | 'success' | 'error';
+
+function AgentModal({ recommendation, repo, token, onClose }: AgentModalProps): React.ReactPortal {
+  const [status, setStatus] = useState<ModalStatus>('idle');
   const [issueUrl, setIssueUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const modalRef = /** @type {React.MutableRefObject<HTMLDivElement|null>} */ (useRef(null));
-  const previousFocusRef = /** @type {React.MutableRefObject<HTMLElement|null>} */ (useRef(null));
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Fokus-felle, Escape-lukking og fokus-retur
   useEffect(() => {
-    previousFocusRef.current = /** @type {HTMLElement|null} */ (document.activeElement);
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
 
     const modal = modalRef.current;
     if (!modal) return;
 
-    const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    const firstFocusable = /** @type {HTMLElement|null} */ (modal.querySelector(focusableSelector));
+    const focusableSelector =
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    const firstFocusable = modal.querySelector<HTMLElement>(focusableSelector);
     firstFocusable?.focus();
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
         return;
       }
       if (e.key === 'Tab') {
-        const focusable = /** @type {NodeListOf<HTMLElement>} */ (modal.querySelectorAll(focusableSelector));
+        const focusable = modal.querySelectorAll<HTMLElement>(focusableSelector);
         if (focusable.length === 0) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -59,32 +70,31 @@ function AgentModal({ recommendation, repo, token, onClose }) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          owner,
-          repo: repoName,
-          recommendation,
-        }),
+        body: JSON.stringify({ owner, repo: repoName, recommendation }),
       });
 
-      const data = await response.json();
+      const data = (await response.json()) as { issueUrl?: string; note?: string; message?: string };
 
       if (!response.ok) {
         throw new Error(data.message || 'Noe gikk galt');
       }
 
-      setIssueUrl(data.issueUrl);
+      setIssueUrl(data.issueUrl ?? '');
       setStatus('success');
       if (data.note) setErrorMessage(data.note);
-    } catch (/** @type {any} */ err) {
-      setErrorMessage(err.message);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
       setStatus('error');
     }
   };
 
   const content = (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="modal-overlay"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div
         className="modal"
         ref={modalRef}
@@ -94,14 +104,18 @@ function AgentModal({ recommendation, repo, token, onClose }) {
       >
         <div className="modal-header">
           <h2 id="agent-modal-title">🤖 La Copilot fikse dette?</h2>
-          <button className="modal-close" onClick={onClose} aria-label="Lukk dialog">✕</button>
+          <button className="modal-close" onClick={onClose} aria-label="Lukk dialog">
+            ✕
+          </button>
         </div>
 
         {status === 'idle' && (
           <>
             <div className="modal-body">
               <p className="modal-repo-name">📁 {repo.fullName}</p>
-              <div className={`modal-issue recommendation priority-${recommendation.priority}`}>
+              <div
+                className={`modal-issue recommendation priority-${recommendation.priority}`}
+              >
                 <div className="rec-header">
                   <span className="rec-title">{recommendation.title}</span>
                   <span className="rec-priority">{recommendation.priority}</span>
@@ -120,7 +134,9 @@ function AgentModal({ recommendation, repo, token, onClose }) {
               </p>
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={onClose}>Avbryt</button>
+              <button className="btn-secondary" onClick={onClose}>
+                Avbryt
+              </button>
               <button className="btn-primary" onClick={handleConfirm}>
                 🚀 Ja, la Copilot fikse det!
               </button>
@@ -142,7 +158,17 @@ function AgentModal({ recommendation, repo, token, onClose }) {
               <h3>Issue opprettet!</h3>
               <p>Copilot er nå tildelt og vil begynne å jobbe med problemet.</p>
               {errorMessage && (
-                <p style={{ marginTop: '10px', fontSize: '0.82rem', color: '#e67e00', background: '#fff8ee', padding: '10px', borderRadius: '6px', lineHeight: 1.5 }}>
+                <p
+                  style={{
+                    marginTop: '10px',
+                    fontSize: '0.82rem',
+                    color: '#e67e00',
+                    background: '#fff8ee',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    lineHeight: 1.5,
+                  }}
+                >
                   ⚠️ {errorMessage}
                 </p>
               )}
@@ -156,7 +182,9 @@ function AgentModal({ recommendation, repo, token, onClose }) {
               </a>
             </div>
             <div className="modal-actions">
-              <button className="btn-primary" onClick={onClose}>Lukk</button>
+              <button className="btn-primary" onClick={onClose}>
+                Lukk
+              </button>
             </div>
           </>
         )}
@@ -169,7 +197,9 @@ function AgentModal({ recommendation, repo, token, onClose }) {
               <p>{errorMessage}</p>
             </div>
             <div className="modal-actions">
-              <button className="btn-secondary" onClick={onClose}>Avbryt</button>
+              <button className="btn-secondary" onClick={onClose}>
+                Avbryt
+              </button>
               <button className="btn-primary" onClick={() => setStatus('idle')}>
                 Prøv igjen
               </button>

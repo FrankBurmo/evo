@@ -7,9 +7,9 @@ export default defineConfig({
     pool: 'forks',
     setupFiles: ['./vitest.backend.setup.cjs'],
     include: [
-      'server/**/*.{test,spec}.{js,ts,mjs}',
-      'packages/cli/**/*.{test,spec}.{js,ts,mjs}',
-      'packages/core/**/*.{test,spec}.{js,ts,mjs}',
+      'server/**/*.{test,spec}.{ts,mjs}',
+      'packages/cli/**/*.{test,spec}.{ts,mjs}',
+      'packages/core/**/*.{test,spec}.{ts,mjs}',
     ],
   },
 });

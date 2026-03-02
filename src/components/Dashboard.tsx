@@ -9,18 +9,25 @@ import {
   ENGINEERING_VELOCITY_CONFIG,
 } from './panelConfigs';
 import ScanControl from './ScanControl';
+import type { RepoData } from '../types';
 
-function Dashboard({ token, onLogout }) {
-  const [repos, setRepos] = useState(/** @type {any[]} */ ([]));
+interface DashboardProps {
+  token: string;
+  onLogout: () => void;
+}
+
+function Dashboard({ token, onLogout }: DashboardProps): React.JSX.Element {
+  const [repos, setRepos] = useState<RepoData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('name');
-  const [sortOrder, setSortOrder] = useState('asc');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
-    fetchRepositories();
+    void fetchRepositories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchRepositories = async () => {
@@ -30,7 +37,7 @@ function Dashboard({ token, onLogout }) {
     try {
       const response = await fetch('/api/repos', {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -38,10 +45,13 @@ function Dashboard({ token, onLogout }) {
         throw new Error('Failed to fetch repositories');
       }
 
-      const data = await response.json();
-      setRepos(data.repositories || []);
-    } catch (/** @type {any} */ err) {
-      setError('Failed to load repositories: ' + err.message);
+      const data = (await response.json()) as { repositories?: RepoData[] };
+      setRepos(data.repositories ?? []);
+    } catch (err: unknown) {
+      setError(
+        'Failed to load repositories: ' +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -49,10 +59,10 @@ function Dashboard({ token, onLogout }) {
 
   const stats = useMemo(() => {
     const totalRepos = repos.length;
-    const activeRepos = repos.filter(r => r.insights?.recentActivity).length;
+    const activeRepos = repos.filter((r) => r.insights?.recentActivity).length;
     const totalStars = repos.reduce((sum, r) => sum + (r.repo.stars || 0), 0);
-    const needsAttention = repos.filter(r =>
-      r.recommendations.some(rec => rec.priority === 'high')
+    const needsAttention = repos.filter((r) =>
+      r.recommendations.some((rec) => rec.priority === 'high'),
     ).length;
     return { totalRepos, activeRepos, totalStars, needsAttention };
   }, [repos]);
@@ -62,26 +72,27 @@ function Dashboard({ token, onLogout }) {
 
     // Kategorifilter
     if (filter === 'market-opportunities') {
-      result = result.filter(repo =>
-        repo.recommendations.some(rec => rec.marketOpportunity)
+      result = result.filter((repo) =>
+        repo.recommendations.some((rec) => rec.marketOpportunity),
       );
     } else if (filter === 'needs-attention') {
-      result = result.filter(repo =>
-        repo.recommendations.some(rec => rec.priority === 'high')
+      result = result.filter((repo) =>
+        repo.recommendations.some((rec) => rec.priority === 'high'),
       );
     } else if (filter === 'active') {
-      result = result.filter(repo => repo.insights?.recentActivity);
+      result = result.filter((repo) => repo.insights?.recentActivity);
     } else if (filter === 'inactive') {
-      result = result.filter(repo => !repo.insights?.recentActivity);
+      result = result.filter((repo) => !repo.insights?.recentActivity);
     }
 
     // Søk
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      result = result.filter(repo =>
-        repo.repo.name.toLowerCase().includes(q) ||
-        repo.repo.fullName.toLowerCase().includes(q) ||
-        (repo.repo.description || '').toLowerCase().includes(q)
+      result = result.filter(
+        (repo) =>
+          repo.repo.name.toLowerCase().includes(q) ||
+          repo.repo.fullName.toLowerCase().includes(q) ||
+          (repo.repo.description || '').toLowerCase().includes(q),
       );
     }
 
@@ -93,10 +104,13 @@ function Dashboard({ token, onLogout }) {
           cmp = (a.repo.stars || 0) - (b.repo.stars || 0);
           break;
         case 'updated':
-          cmp = new Date(a.repo.updatedAt).getTime() - new Date(b.repo.updatedAt).getTime();
+          cmp =
+            new Date(a.repo.updatedAt).getTime() -
+            new Date(b.repo.updatedAt).getTime();
           break;
         case 'priority': {
-          const score = (r) => r.recommendations.filter(rec => rec.priority === 'high').length;
+          const score = (r: RepoData) =>
+            r.recommendations.filter((rec) => rec.priority === 'high').length;
           cmp = score(a) - score(b);
           break;
         }
@@ -112,14 +126,18 @@ function Dashboard({ token, onLogout }) {
   }, [repos, filter, searchQuery, sortBy, sortOrder]);
 
   const toggleSortOrder = useCallback(() => {
-    setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
   }, []);
 
   if (isLoading) {
     return (
       <div className="app">
         <Header onLogout={onLogout} />
-        <div className="repos-grid" aria-busy="true" aria-label="Laster repositories">
+        <div
+          className="repos-grid"
+          aria-busy="true"
+          aria-label="Laster repositories"
+        >
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
           ))}
@@ -132,10 +150,18 @@ function Dashboard({ token, onLogout }) {
     return (
       <div className="app">
         <Header onLogout={onLogout} />
-        <div className="error" role="alert" style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <div
+          className="error"
+          role="alert"
+          style={{ maxWidth: '600px', margin: '0 auto' }}
+        >
           <h3 style={{ marginBottom: '8px', fontSize: '1rem' }}>Feil oppstod</h3>
           <p style={{ fontSize: '0.88rem' }}>{error}</p>
-          <button onClick={onLogout} className="btn-secondary" style={{ marginTop: '14px' }}>
+          <button
+            onClick={onLogout}
+            className="btn-secondary"
+            style={{ marginTop: '14px' }}
+          >
             Logg ut
           </button>
         </div>
@@ -172,12 +198,20 @@ function Dashboard({ token, onLogout }) {
 
       <ConfigurablePanel repos={repos} token={token} {...PRODUCT_DEV_CONFIG} />
 
-      <ConfigurablePanel repos={repos} token={token} {...ENGINEERING_VELOCITY_CONFIG} />
+      <ConfigurablePanel
+        repos={repos}
+        token={token}
+        {...ENGINEERING_VELOCITY_CONFIG}
+      />
 
       <div className="filters">
         <h3>Filtrer repositories</h3>
         <div className="filter-controls">
-          <div className="filter-options" role="group" aria-label="Filtrer etter kategori">
+          <div
+            className="filter-options"
+            role="group"
+            aria-label="Filtrer etter kategori"
+          >
             <button
               className={`filter-option ${filter === 'all' ? 'active' : ''}`}
               onClick={() => setFilter('all')}
@@ -216,23 +250,27 @@ function Dashboard({ token, onLogout }) {
           </div>
           <div className="filter-search-sort">
             <div className="filter-search">
-              <label htmlFor="repo-search" className="sr-only">Søk i repositories</label>
+              <label htmlFor="repo-search" className="sr-only">
+                Søk i repositories
+              </label>
               <input
                 id="repo-search"
                 type="search"
                 className="filter-search-input"
                 placeholder="🔍 Søk etter navn..."
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+                onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
             <div className="filter-sort">
-              <label htmlFor="repo-sort" className="sr-only">Sorter etter</label>
+              <label htmlFor="repo-sort" className="sr-only">
+                Sorter etter
+              </label>
               <select
                 id="repo-sort"
                 className="filter-sort-select"
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
+                onChange={(e) => setSortBy(e.target.value)}
               >
                 <option value="name">Navn</option>
                 <option value="stars">Stjerner</option>
@@ -242,7 +280,9 @@ function Dashboard({ token, onLogout }) {
               <button
                 className="filter-sort-order"
                 onClick={toggleSortOrder}
-                aria-label={sortOrder === 'asc' ? 'Stigende rekkefølge' : 'Synkende rekkefølge'}
+                aria-label={
+                  sortOrder === 'asc' ? 'Stigende rekkefølge' : 'Synkende rekkefølge'
+                }
                 title={sortOrder === 'asc' ? 'Stigende' : 'Synkende'}
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
@@ -257,14 +297,12 @@ function Dashboard({ token, onLogout }) {
       </div>
 
       {filteredRepos.length === 0 ? (
-        <div className="no-repos">
-          Ingen repositories funnet med valgt filter.
-        </div>
+        <div className="no-repos">Ingen repositories funnet med valgt filter.</div>
       ) : (
         <div className="repos-grid">
           {filteredRepos.map((repoData) => (
-            <RepositoryCard 
-              key={repoData.repo.fullName} 
+            <RepositoryCard
+              key={repoData.repo.fullName}
               repoData={repoData}
               token={token}
             />

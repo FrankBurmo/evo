@@ -1,12 +1,16 @@
 import React from 'react';
+import type { ScanProgressState } from '../types';
+
+interface ScanProgressProps {
+  progress: ScanProgressState;
+}
 
 /**
  * ScanProgress — fremdriftsindikator under pågående skanning.
  */
-function ScanProgress({ progress }) {
-  const percentage = progress.total > 0
-    ? Math.round((progress.current / progress.total) * 100)
-    : 0;
+function ScanProgress({ progress }: ScanProgressProps): React.JSX.Element {
+  const percentage =
+    progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <div className="scan-progress">
@@ -18,10 +22,7 @@ function ScanProgress({ progress }) {
         aria-valuemax={progress.total}
         aria-label={`Skanning: ${percentage}% fullført`}
       >
-        <div
-          className="scan-progress-fill"
-          style={{ width: `${percentage}%` }}
-        />
+        <div className="scan-progress-fill" style={{ width: `${percentage}%` }} />
       </div>
       <p className="scan-progress-text">
         {progress.current} / {progress.total} repos analysert

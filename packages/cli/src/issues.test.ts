@@ -1,6 +1,3 @@
-/* global vi, describe, it, expect, beforeEach */
-'use strict';
-
 // NB: createIssue oppretter sin eigen Octokit-instans. Vi tester buildIssueBody
 // via eksportert createIssue-funksjon (dryRun) og direkte intern logikk.
 

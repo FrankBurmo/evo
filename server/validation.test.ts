@@ -1,6 +1,3 @@
-/* global vi, describe, it, expect */
-'use strict';
-
 const {
   validate,
   createAgentIssueSchema,

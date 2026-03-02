@@ -1,42 +1,57 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 
-const ToastContext = createContext(/** @type {{ addToast: (message: string, type?: string) => void }|null} */ (null));
+type ToastType = 'info' | 'success' | 'error' | 'warning';
+
+interface Toast {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
+interface ToastContextValue {
+  addToast: (message: string, type?: ToastType) => void;
+}
+
+const ToastContext = createContext<ToastContextValue | null>(null);
 
 /**
  * useToast — hook for å vise toast-notifikasjoner.
- * @returns {{ addToast: (message: string, type?: 'info'|'success'|'error'|'warning') => void }}
  */
-export function useToast() {
+export function useToast(): ToastContextValue {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast må brukes innenfor ToastProvider');
   return ctx;
+}
+
+interface ToastProviderProps {
+  children: React.ReactNode;
 }
 
 /**
  * ToastProvider — kontekstleverandør for toast-notifikasjoner.
  * Rendre denne rundt appen for å aktivere toast-funksjonalitet.
  */
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState(/** @type {Array<{id: number, message: string, type: string}>} */ ([]));
+export function ToastProvider({ children }: ToastProviderProps): React.JSX.Element {
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const idCounter = useRef(0);
 
-  const addToast = useCallback((message, type = 'info') => {
+  const addToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = ++idCounter.current;
-    setToasts(prev => [...prev, { id, message, type }]);
+    setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
+      setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 4000);
   }, []);
 
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
+  const removeToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   return (
     <ToastContext.Provider value={{ addToast }}>
       {children}
       <div className="toast-container" aria-live="polite" role="status">
-        {toasts.map(toast => (
+        {toasts.map((toast) => (
           <div key={toast.id} className={`toast toast--${toast.type}`}>
             <span className="toast__message">{toast.message}</span>
             <button

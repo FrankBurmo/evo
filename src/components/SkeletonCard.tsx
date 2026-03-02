@@ -4,7 +4,7 @@ import React from 'react';
  * SkeletonCard — plassholder-komponent som vises mens data lastes.
  * Erstatter «Laster repositories...»-teksten med visuell skjelettanimasjon.
  */
-function SkeletonCard() {
+function SkeletonCard(): React.JSX.Element {
   return (
     <div className="repo-card skeleton-card" aria-hidden="true">
       <div className="skeleton-line skeleton-title" />

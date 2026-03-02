@@ -15,17 +15,12 @@
   },
   "include": [
     "server/**/*.ts",
-    "server/**/*.js",
     "packages/core/index.ts",
-    "vitest.backend.config.js"
+    "vitest.backend.config.ts"
   ],
   "exclude": [
     "server/**/*.test.ts",
     "server/**/*.spec.ts",
-    "server/**/*.test.js",
-    "server/**/*.spec.js",
-    "packages/**/*.test.js",
-    "packages/**/*.spec.js",
     "node_modules",
     "dist"
   ]

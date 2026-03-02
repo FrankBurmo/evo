@@ -1,6 +1,3 @@
-/* global vi, describe, it, expect, beforeEach, afterEach */
-'use strict';
-
 const request = require('supertest');
 const express = require('express');
 

@@ -3,7 +3,7 @@ import Dashboard from './components/Dashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
 
-function App() {
+function App(): React.JSX.Element {
   const [token, setToken] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,7 +18,7 @@ function App() {
     }
   }, []);
 
-  const handleLogin = async (e) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token.trim()) {
       setError('Please enter a GitHub token');
@@ -37,8 +37,11 @@ function App() {
       } else {
         setError('Failed to authenticate');
       }
-    } catch (/** @type {any} */ err) {
-      setError('Failed to connect to server: ' + err.message);
+    } catch (err: unknown) {
+      setError(
+        'Failed to connect to server: ' +
+          (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       setIsLoading(false);
     }
@@ -70,7 +73,9 @@ function App() {
 
       <div className="auth-section">
         <h2>Koble til GitHub</h2>
-        <p className="auth-subtitle">Skriv inn ditt Personal Access Token for å starte</p>
+        <p className="auth-subtitle">
+          Skriv inn ditt Personal Access Token for å starte
+        </p>
         <form onSubmit={handleLogin}>
           <div className="input-group">
             <label htmlFor="github-token-input">GitHub Token</label>
@@ -89,13 +94,36 @@ function App() {
           </button>
         </form>
 
-        {error && <div className="error" role="alert" style={{ marginTop: '14px', padding: '12px 14px', fontSize: '0.87rem' }}>{error}</div>}
+        {error && (
+          <div
+            className="error"
+            role="alert"
+            style={{ marginTop: '14px', padding: '12px 14px', fontSize: '0.87rem' }}
+          >
+            {error}
+          </div>
+        )}
 
         <div className="info">
           <strong>Trenger du hjelp?</strong>
           <p style={{ marginTop: '4px' }}>
-            Token trenger <code style={{ background: 'rgba(108,99,255,0.15)', padding: '1px 5px', borderRadius: '4px', fontSize: '0.85em' }}>repo</code> tilgang. Lag den på{' '}
-            <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener noreferrer">
+            Token trenger{' '}
+            <code
+              style={{
+                background: 'rgba(108,99,255,0.15)',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                fontSize: '0.85em',
+              }}
+            >
+              repo
+            </code>{' '}
+            tilgang. Lag den på{' '}
+            <a
+              href="https://github.com/settings/tokens/new"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               github.com/settings/tokens
             </a>
           </p>

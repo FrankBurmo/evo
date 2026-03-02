@@ -1,6 +1,3 @@
-/* global vi, describe, it, expect, beforeEach, afterEach */
-'use strict';
-
 const copilotPath = require.resolve('./copilot');
 
 describe('CLI: copilot', () => {

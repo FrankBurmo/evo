@@ -1,4 +1,19 @@
 import React from 'react';
+import type { Recommendation, ScanRepoResult, IssueCreatedEntry } from '../types';
+
+interface ScanRepoItemProps {
+  result: ScanRepoResult;
+  selectedRecs: Record<string, Set<number>>;
+  individualStatus: Record<string, 'loading' | 'created' | 'error'>;
+  onToggleRec: (repoFullName: string, index: number) => void;
+  onSelectAll: (
+    repoFullName: string,
+    recommendations: Recommendation[],
+    issuesCreated: IssueCreatedEntry[] | undefined,
+  ) => void;
+  onDeselectAll: (repoFullName: string) => void;
+  onCreateSingle: (repoFullName: string, index: number) => void;
+}
 
 /**
  * ScanRepoItem — ett repo-resultat med anbefalinger og checkboxer.
@@ -11,16 +26,18 @@ function ScanRepoItem({
   onSelectAll,
   onDeselectAll,
   onCreateSingle,
-}) {
-  const repoSel = selectedRecs[result.repo.fullName] || new Set();
+}: ScanRepoItemProps): React.JSX.Element {
+  const repoSel = selectedRecs[result.repo.fullName] ?? new Set<number>();
 
   const creatableRecs = result.recommendations.filter(
-    (rec) => !result.issuesCreated?.find(
-      ic => ic.title === rec.title && ic.status === 'created',
-    ),
+    (rec) =>
+      !result.issuesCreated?.find(
+        (ic) => ic.title === rec.title && ic.status === 'created',
+      ),
   );
 
-  const allSelected = creatableRecs.length > 0 &&
+  const allSelected =
+    creatableRecs.length > 0 &&
     creatableRecs.every((_, i) => {
       const origIdx = result.recommendations.indexOf(creatableRecs[i]);
       return repoSel.has(origIdx);
@@ -29,14 +46,15 @@ function ScanRepoItem({
   return (
     <div className="scan-repo-item">
       <div className="scan-repo-header">
-        <a href={result.repo.url} target="_blank" rel="noopener noreferrer">
+        <a href={result.repo.url as string} target="_blank" rel="noopener noreferrer">
           {result.repo.fullName}
         </a>
         {result.repo.projectType && (
           <span className="scan-project-type">{result.repo.projectType}</span>
         )}
         <span className="scan-rec-count">
-          {result.recommendations.length} anbefaling{result.recommendations.length !== 1 ? 'er' : ''}
+          {result.recommendations.length} anbefaling
+          {result.recommendations.length !== 1 ? 'er' : ''}
         </span>
         {creatableRecs.length > 0 && (
           <button
@@ -44,7 +62,11 @@ function ScanRepoItem({
             onClick={() =>
               allSelected
                 ? onDeselectAll(result.repo.fullName)
-                : onSelectAll(result.repo.fullName, result.recommendations, result.issuesCreated)
+                : onSelectAll(
+                    result.repo.fullName,
+                    result.recommendations,
+                    result.issuesCreated,
+                  )
             }
           >
             {allSelected ? 'Fjern valg' : 'Velg alle'}
@@ -55,7 +77,7 @@ function ScanRepoItem({
         <ul className="scan-rec-list">
           {result.recommendations.map((rec, i) => {
             const alreadyCreated = result.issuesCreated?.find(
-              ic => ic.title === rec.title && ic.status === 'created',
+              (ic) => ic.title === rec.title && ic.status === 'created',
             );
             const isSelected = repoSel.has(i);
             const indKey = `${result.repo.fullName}::${i}`;
@@ -79,7 +101,10 @@ function ScanRepoItem({
                 {rec.type && <span className="scan-rec-type">{rec.type}</span>}
                 {alreadyCreated ? (
                   <a
-                    href={alreadyCreated.issueUrl || result.issuesCreated.find(ic => ic.title === rec.title)?.issueUrl}
+                    href={
+                      alreadyCreated.issueUrl ??
+                      result.issuesCreated?.find((ic) => ic.title === rec.title)?.issueUrl
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="scan-issue-link"

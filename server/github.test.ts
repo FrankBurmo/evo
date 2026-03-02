@@ -1,6 +1,3 @@
-/* global describe, it, expect */
-'use strict';
-
 const { extractToken, getOctokit } = require('./github');
 
 describe('extractToken', () => {
