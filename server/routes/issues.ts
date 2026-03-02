@@ -6,23 +6,23 @@
  *   POST /api/product-dev/:actionId
  *   POST /api/engineering-velocity/:actionId
  */
-const express = require('express');
-const { getOctokit, assignCopilotToIssue } = require('../github');
-const {
+import { Router } from 'express';
+import { getOctokit, assignCopilotToIssue } from '../github';
+import {
   architectureAnalysisTemplate,
   PRODUCT_DEV_TEMPLATES,
   ENGINEERING_VELOCITY_TEMPLATES,
-} = require('../templates');
-const { createTemplateIssue, validateIssueRequest } = require('../services/issue-service');
-const { requireAuth } = require('../middleware');
-const {
+} from '../templates';
+import { createTemplateIssue, validateIssueRequest } from '../services/issue-service';
+import { requireAuth } from '../middleware';
+import {
   validate,
   createAgentIssueSchema,
   templateIssueSchema,
   actionIdParamsSchema,
-} = require('../validation');
+} from '../validation';
 
-const router = express.Router();
+const router = Router();
 
 // ── POST /api/create-agent-issue ────────────────────────────────────────────
 router.post(
@@ -31,7 +31,17 @@ router.post(
   validate({ body: createAgentIssueSchema }),
   async (req, res, next) => {
     try {
-      const { owner, repo: repoName, recommendation } = req.body;
+      const { owner, repo: repoName, recommendation } = req.body as {
+        owner: string;
+        repo: string;
+        recommendation: {
+          title: string;
+          description: string;
+          priority: string;
+          type?: string;
+          marketOpportunity?: string;
+        };
+      };
       const octokit = getOctokit(req.token);
 
       const issueTitle = `[Copilot Agent] ${recommendation.title}`;
@@ -61,22 +71,18 @@ ${recommendation.marketOpportunity ? `### 💼 Forretningsverdi\n\n${recommendat
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Prioritet: \`${recommendation.priority}\`*
 `;
 
-      // Create issue
-      let issue;
-      const labels = ['copilot:run'];
+      const labels: string[] = ['copilot:run'];
       if (recommendation.priority === 'high') labels.push('priority: high');
       if (recommendation.type) labels.push(recommendation.type);
 
-      const { data } = await octokit.issues.create({
+      const { data: issue } = await octokit.issues.create({
         owner,
         repo: repoName,
         title: issueTitle,
         body: issueBody,
         labels,
       });
-      issue = data;
 
-      // Assign Copilot
       const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
         owner,
         repoName,
@@ -109,12 +115,15 @@ router.post(
   requireAuth,
   validate({ body: templateIssueSchema }),
   async (req, res, next) => {
-    const { owner, repo: repoName } = req.body;
+    const { owner, repo: repoName } = req.body as { owner: string; repo: string };
     const template = architectureAnalysisTemplate(repoName);
 
     try {
       const result = await createTemplateIssue({
-        token: req.token, owner, repoName, template,
+        token: req.token,
+        owner,
+        repoName,
+        template,
         logPrefix: 'Architecture analysis',
       });
       return res.json(result);
@@ -130,19 +139,26 @@ router.post(
   requireAuth,
   validate({ params: actionIdParamsSchema, body: templateIssueSchema }),
   async (req, res, next) => {
-    const { actionId } = req.params;
+    const { actionId } = req.params as { actionId: string };
 
     const templateFn = PRODUCT_DEV_TEMPLATES[actionId];
     if (!templateFn) {
-      return res.status(400).json({ error: 'Validation Error', message: `Ukjent product-dev action: ${actionId}`, statusCode: 400 });
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: `Ukjent product-dev action: ${actionId}`,
+        statusCode: 400,
+      });
     }
 
-    const { owner, repo: repoName } = req.body;
+    const { owner, repo: repoName } = req.body as { owner: string; repo: string };
     const template = templateFn(repoName);
 
     try {
       const result = await createTemplateIssue({
-        token: req.token, owner, repoName, template,
+        token: req.token,
+        owner,
+        repoName,
+        template,
         logPrefix: `Product-dev (${actionId})`,
       });
       return res.json(result);
@@ -158,19 +174,26 @@ router.post(
   requireAuth,
   validate({ params: actionIdParamsSchema, body: templateIssueSchema }),
   async (req, res, next) => {
-    const { actionId } = req.params;
+    const { actionId } = req.params as { actionId: string };
 
     const templateFn = ENGINEERING_VELOCITY_TEMPLATES[actionId];
     if (!templateFn) {
-      return res.status(400).json({ error: 'Validation Error', message: `Ukjent engineering-velocity action: ${actionId}`, statusCode: 400 });
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: `Ukjent engineering-velocity action: ${actionId}`,
+        statusCode: 400,
+      });
     }
 
-    const { owner, repo: repoName } = req.body;
+    const { owner, repo: repoName } = req.body as { owner: string; repo: string };
     const template = templateFn(repoName);
 
     try {
       const result = await createTemplateIssue({
-        token: req.token, owner, repoName, template,
+        token: req.token,
+        owner,
+        repoName,
+        template,
         logPrefix: `Engineering-velocity (${actionId})`,
       });
       return res.json(result);
@@ -180,4 +203,4 @@ router.post(
   },
 );
 
-module.exports = router;
+export = router;

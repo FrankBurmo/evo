@@ -2,13 +2,13 @@
   "name": "evo-scan",
   "version": "0.1.0",
   "description": "Proaktiv GitHub-repo-analyse og issue-opprettelse – drevet av GitHub Copilot AI",
-  "main": "src/index.js",
+  "main": "src/scanner.ts",
   "bin": {
-    "evo-scan": "./bin/evo-scan.js"
+    "evo-scan": "./bin/evo-scan.ts"
   },
   "scripts": {
-    "start": "node bin/evo-scan.js",
-    "test": "node --experimental-vm-modules ../../node_modules/.bin/vitest run --config ../../vitest.backend.config.js --include 'packages/cli/**/*.{test,spec}.{js,mjs}'"
+    "start": "tsx bin/evo-scan.ts",
+    "test": "../../node_modules/.bin/vitest run --config ../../vitest.backend.config.js --include 'packages/cli/**/*.{test,spec}.{js,ts,mjs}'"
   },
   "keywords": [
     "github",

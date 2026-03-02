@@ -1,11 +1,18 @@
-'use strict';
-
-const { Octokit } = require('@octokit/rest');
+/**
+ * packages/cli/src/issues.ts — GitHub Issue-opprettelse for CLI.
+ */
+import { Octokit } from '@octokit/rest';
+import type { Recommendation } from '../../../packages/core';
 
 /**
  * Sjekk om et lignende issue allerede eksisterer (dedup).
  */
-async function issueAlreadyExists(octokit, owner, repo, title) {
+async function issueAlreadyExists(
+  octokit: Octokit,
+  owner: string,
+  repo: string,
+  title: string,
+): Promise<boolean> {
   try {
     const issues = await octokit.paginate(octokit.issues.listForRepo, {
       owner,
@@ -15,17 +22,31 @@ async function issueAlreadyExists(octokit, owner, repo, title) {
       per_page: 100,
     });
     const normalizedTitle = title.toLowerCase().trim();
-    return issues.some(i => i.title.toLowerCase().trim() === normalizedTitle);
+    return issues.some((i) => i.title.toLowerCase().trim() === normalizedTitle);
   } catch {
     return false; // Ved feil: anta at det ikke finnes
   }
 }
 
+interface CreateIssueParams {
+  token: string;
+  owner: string;
+  repo: string;
+  recommendation: Recommendation & { marketOpportunity?: string };
+  dryRun?: boolean;
+}
+
 /**
  * Opprett ett GitHub Issue for en anbefaling.
- * @returns {Promise<string|null>} URL til opprettet issue, eller null ved feil/tørrkjøring
+ * @returns URL til opprettet issue, eller null ved feil/tørrkjøring
  */
-async function createIssue({ token, owner, repo, recommendation, dryRun = false }) {
+export async function createIssue({
+  token,
+  owner,
+  repo,
+  recommendation,
+  dryRun = false,
+}: CreateIssueParams): Promise<string | null> {
   const octokit = new Octokit({ auth: token });
 
   const title = `[Evo] ${recommendation.title}`;
@@ -35,14 +56,13 @@ async function createIssue({ token, owner, repo, recommendation, dryRun = false 
     return `[dry-run] ${owner}/${repo}#? – "${title}"`;
   }
 
-  // Dedup-sjekk
   const exists = await issueAlreadyExists(octokit, owner, repo, title);
   if (exists) {
-    return null; // Issue finnes allerede
+    return null;
   }
 
   try {
-    const labels = ['evo-scan'];
+    const labels: string[] = ['evo-scan'];
     if (recommendation.priority === 'high') labels.push('priority: high');
     if (recommendation.priority === 'medium') labels.push('priority: medium');
     if (recommendation.type) labels.push(recommendation.type);
@@ -56,9 +76,9 @@ async function createIssue({ token, owner, repo, recommendation, dryRun = false 
     });
 
     return data.html_url;
-  } catch (/** @type {any} */ err) {
+  } catch (err: unknown) {
     // Prøv uten labels hvis label-opprettelse feiler
-    if (err.status === 422) {
+    if ((err as { status?: number }).status === 422) {
       const { data } = await octokit.issues.create({
         owner,
         repo,
@@ -72,8 +92,12 @@ async function createIssue({ token, owner, repo, recommendation, dryRun = false 
   }
 }
 
-function buildIssueBody(rec, repoFullName) {
-  const priorityEmoji = { high: '🔴', medium: '🟡', low: '🔵' }[rec.priority] || '⚪';
+function buildIssueBody(
+  rec: Recommendation & { marketOpportunity?: string },
+  repoFullName: string,
+): string {
+  const priorityEmoji =
+    ({ high: '🔴', medium: '🟡', low: '🔵' } as Record<string, string>)[rec.priority] || '⚪';
 
   return `## ${priorityEmoji} ${rec.title}
 
@@ -101,5 +125,3 @@ ${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}
 *Repo: \`${repoFullName}\`*
 `;
 }
-
-module.exports = { createIssue };

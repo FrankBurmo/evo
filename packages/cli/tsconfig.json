@@ -12,6 +12,13 @@
     // "outDir": "dist",
     // "rootDir": "."
   },
-  "include": ["src/**/*.js", "bin/**/*.js"],
-  "exclude": ["src/**/*.test.js", "src/**/*.spec.js", "node_modules", "dist"]
+  "include": ["src/**/*.ts", "src/**/*.js", "bin/**/*.ts", "bin/**/*.js"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts",
+    "src/**/*.test.js",
+    "src/**/*.spec.js",
+    "node_modules",
+    "dist"
+  ]
 }

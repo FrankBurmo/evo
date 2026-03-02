@@ -1,16 +1,11 @@
-'use strict';
-
 /**
- * server/project-detector.js — Prosjekttypegjenkjenning basert på filstruktur og metadata.
- *
- * Eksporterer:
- *   detectProjectType({ rootFiles, packageJsonContent, language, repoName })
- *   ANDROID_INDICATORS, WEB_INDICATORS, API_INDICATORS, DOCS_INDICATORS
+ * server/project-detector.ts — Prosjekttypegjenkjenning basert på filstruktur og metadata.
  */
+import type { ProjectType } from '../packages/core';
 
 // ─── Indikator-konstanter ────────────────────────────────────────────────────
 
-const ANDROID_INDICATORS = [
+export const ANDROID_INDICATORS = [
   'AndroidManifest.xml',
   'build.gradle',
   'build.gradle.kts',
@@ -18,7 +13,7 @@ const ANDROID_INDICATORS = [
   'app/src/main/AndroidManifest.xml',
 ];
 
-const WEB_INDICATORS = [
+export const WEB_INDICATORS = [
   'index.html',
   'vite.config.js',
   'vite.config.ts',
@@ -32,7 +27,7 @@ const WEB_INDICATORS = [
   'remix.config.js',
 ];
 
-const API_INDICATORS = [
+export const API_INDICATORS = [
   'server.js',
   'server.ts',
   'app.js',
@@ -49,7 +44,7 @@ const API_INDICATORS = [
   'swagger.json',
 ];
 
-const DOCS_INDICATORS = [
+export const DOCS_INDICATORS = [
   'mkdocs.yml',
   'docusaurus.config.js',
   'docusaurus.config.ts',
@@ -59,15 +54,27 @@ const DOCS_INDICATORS = [
 
 // ─── Prosjekttypedeteksjon ───────────────────────────────────────────────────
 
+interface DetectProjectTypeParams {
+  rootFiles: string[];
+  packageJsonContent: string | null;
+  language: string | null;
+  repoName: string;
+}
+
 /**
  * Detekter prosjekttype basert på rotnivå-filer, README og package.json.
- * Returnerer: 'android-app' | 'web-app' | 'api' | 'library' | 'docs' | 'other'
  */
-function detectProjectType({ rootFiles, packageJsonContent, language, repoName }) {
-  const rootSet = new Set(rootFiles.map(f => f.toLowerCase()));
+export function detectProjectType({
+  rootFiles,
+  packageJsonContent,
+  language,
+  repoName,
+}: DetectProjectTypeParams): ProjectType {
+  const rootSet = new Set(rootFiles.map((f) => f.toLowerCase()));
+  void repoName; // unused but kept for API compatibility
 
   // Android
-  const androidMatch = ANDROID_INDICATORS.some(f => rootSet.has(f.toLowerCase()));
+  const androidMatch = ANDROID_INDICATORS.some((f) => rootSet.has(f.toLowerCase()));
   if (androidMatch || language === 'Kotlin' || language === 'Java') {
     if (rootSet.has('androidmanifest.xml') || rootSet.has('gradlew')) {
       return 'android-app';
@@ -75,29 +82,29 @@ function detectProjectType({ rootFiles, packageJsonContent, language, repoName }
   }
 
   // Docs
-  const docsMatch = DOCS_INDICATORS.some(f => rootSet.has(f.toLowerCase()));
+  const docsMatch = DOCS_INDICATORS.some((f) => rootSet.has(f.toLowerCase()));
   if (docsMatch) return 'docs';
 
-  // Web app (requires package.json or known web config)
-  const webFileMatch = WEB_INDICATORS.some(f => rootSet.has(f.toLowerCase()));
+  // Web app
+  const webFileMatch = WEB_INDICATORS.some((f) => rootSet.has(f.toLowerCase()));
   if (webFileMatch) return 'web-app';
 
   if (packageJsonContent) {
     try {
       const pkg = JSON.parse(packageJsonContent);
-      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+      const deps: Record<string, string> = { ...pkg.dependencies, ...pkg.devDependencies };
       const webFrameworks = ['react', 'vue', 'next', 'nuxt', 'angular', '@angular/core', 'svelte', 'astro', 'remix'];
-      if (webFrameworks.some(fw => deps[fw])) return 'web-app';
+      if (webFrameworks.some((fw) => deps[fw])) return 'web-app';
 
       const serverFrameworks = ['express', 'fastify', 'koa', 'hapi', 'nestjs', '@nestjs/core', 'hono'];
-      if (serverFrameworks.some(fw => deps[fw])) return 'api';
+      if (serverFrameworks.some((fw) => deps[fw])) return 'api';
     } catch {
       // ignore JSON parse errors
     }
   }
 
   // API / Backend service
-  const apiMatch = API_INDICATORS.some(f => rootSet.has(f.toLowerCase()));
+  const apiMatch = API_INDICATORS.some((f) => rootSet.has(f.toLowerCase()));
   if (apiMatch) return 'api';
 
   // Library (has package.json with main/exports but no web framework)
@@ -118,11 +125,3 @@ function detectProjectType({ rootFiles, packageJsonContent, language, repoName }
 
   return 'other';
 }
-
-module.exports = {
-  detectProjectType,
-  ANDROID_INDICATORS,
-  WEB_INDICATORS,
-  API_INDICATORS,
-  DOCS_INDICATORS,
-};

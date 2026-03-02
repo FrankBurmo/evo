@@ -1,32 +1,30 @@
-'use strict';
-
 /**
- * server/services/scan-service.js — Scan state management og skannelogikk.
+ * server/services/scan-service.ts — Scan state management og skannelogikk.
  *
  * Trekker ut in-memory scan state og kjørelogikk fra routes/scan.js
  * slik at ruten kun håndterer HTTP-laget.
  */
+import { analyzeRepository } from '../analyzer';
+import { analyzeRepoFull } from './analysis-service';
+import { buildScanIssueBody } from '../templates';
+import { meetsMinPriority, PRIORITY_RANK } from '../../packages/core';
+import { assignCopilotToIssue } from '../github';
+import type { Octokit } from '@octokit/rest';
+import type { ScanState, ScanOptions, FullAnalysisResult } from '../types';
 
-const { analyzeRepository } = require('../analyzer');
-const { analyzeRepoFull } = require('./analysis-service');
-const { buildScanIssueBody } = require('../templates');
-const { meetsMinPriority } = require('../../packages/core');
-const { assignCopilotToIssue } = require('../github');
+// ── In-memory scan state (single tenant — one scan at a time) ────────────────
 
-// ── In-memory scan state (single tenant — one scan at a time) ───────────────
-
-/** @type {{ status: string, startedAt: string|null, completedAt: string|null, progress: {current: number, total: number, currentRepo: string|null}, results: any[], error: string|null, options: any }} */
-const scanState = {
-  status: 'idle',       // idle | running | completed | error
+export const scanState: ScanState = {
+  status: 'idle',
   startedAt: null,
   completedAt: null,
   progress: { current: 0, total: 0, currentRepo: null },
-  results: [],          // [{ repo, recommendations, deepInsights, issuesCreated }]
+  results: [],
   error: null,
   options: {},
 };
 
-function resetScanState() {
+export function resetScanState(): void {
   scanState.status = 'idle';
   scanState.startedAt = null;
   scanState.completedAt = null;
@@ -37,7 +35,7 @@ function resetScanState() {
 }
 
 /** Get a read-only snapshot of current scan state. */
-function getScanStatus() {
+export function getScanStatus(): Record<string, unknown> {
   return {
     status: scanState.status,
     startedAt: scanState.startedAt,
@@ -50,17 +48,15 @@ function getScanStatus() {
 }
 
 /** Get scan results, optionally filtered by minPriority. */
-function getScanResults(minPriority) {
-  const { PRIORITY_RANK } = require('../../packages/core');
-
+export function getScanResults(minPriority?: string): Record<string, unknown> {
   let results = scanState.results;
 
   if (minPriority) {
-    const min = PRIORITY_RANK[minPriority] || 0;
+    const min = (PRIORITY_RANK as Record<string, number>)[minPriority] || 0;
     results = results.map((r) => ({
       ...r,
       recommendations: r.recommendations.filter(
-        (rec) => (PRIORITY_RANK[rec.priority] || 0) >= min,
+        (rec) => ((PRIORITY_RANK as Record<string, number>)[rec.priority] || 0) >= min,
       ),
     }));
   }
@@ -86,15 +82,16 @@ function getScanResults(minPriority) {
   };
 }
 
+interface StartScanParams {
+  octokit: Octokit;
+  token: string;
+  options: ScanOptions;
+}
+
 /**
  * Start a proactive scan. Runs asynchronously (fire-and-forget).
- *
- * @param {object} params
- * @param {import('@octokit/rest').Octokit} params.octokit
- * @param {string} params.token
- * @param {object} params.options
  */
-async function startScan({ octokit, token, options }) {
+export async function startScan({ octokit, token, options }: StartScanParams): Promise<void> {
   const {
     createIssues = false,
     assignCopilot = false,
@@ -122,11 +119,11 @@ async function startScan({ octokit, token, options }) {
 
     // 2. Deep-analyse each repo sequentially (to respect rate limits)
     for (let i = 0; i < activeRepos.length; i++) {
-      const repo = activeRepos[i];
+      const repo = activeRepos[i] as Record<string, unknown>;
       scanState.progress.current = i + 1;
-      scanState.progress.currentRepo = repo.full_name;
+      scanState.progress.currentRepo = (repo.full_name as string) || null;
 
-      let analysis;
+      let analysis: FullAnalysisResult;
       try {
         analysis = await analyzeRepoFull({
           octokit,
@@ -134,11 +131,14 @@ async function startScan({ octokit, token, options }) {
           token,
           options: { useAI, model },
         });
-      } catch (/** @type {any} */ err) {
-        analysis = analyzeRepository(repo);
+      } catch (err: unknown) {
+        analysis = analyzeRepository(repo as unknown as Parameters<typeof analyzeRepository>[0]) as unknown as FullAnalysisResult;
         analysis.deepInsights = null;
         analysis.aiAnalyzed = false;
-        console.warn(`Analyse feilet for ${repo.full_name}:`, err.message);
+        console.warn(
+          `Analyse feilet for ${repo.full_name}:`,
+          (err as Error).message,
+        );
       }
 
       // Filter recommendations by minPriority
@@ -150,14 +150,15 @@ async function startScan({ octokit, token, options }) {
         repo: analysis.repo,
         deepInsights: analysis.deepInsights || null,
         recommendations: filteredRecs,
-        issuesCreated: /** @type {any[]} */ ([]),
+        issuesCreated: [] as Array<Record<string, unknown>>,
       };
 
       // 3. Create issues if requested
       if (createIssues && filteredRecs.length > 0) {
-        const [owner, repoName] = repo.full_name.split('/');
+        const repoFullName = analysis.repo.fullName;
+        const [owner, repoName] = repoFullName.split('/');
 
-        let existingTitles = new Set();
+        let existingTitles = new Set<string>();
         try {
           const existingIssues = await octokit.paginate(octokit.issues.listForRepo, {
             owner,
@@ -185,16 +186,24 @@ async function startScan({ octokit, token, options }) {
             if (rec.priority === 'medium') labels.push('priority: medium');
             if (rec.type) labels.push(rec.type);
 
-            let issue;
+            let issue: { html_url: string; number: number };
             try {
               const { data } = await octokit.issues.create({
-                owner, repo: repoName, title: issueTitle, body, labels,
+                owner,
+                repo: repoName,
+                title: issueTitle,
+                body,
+                labels,
               });
               issue = data;
-            } catch (/** @type {any} */ labelErr) {
-              if (labelErr.status === 422) {
+            } catch (labelErr: unknown) {
+              if ((labelErr as { status?: number }).status === 422) {
                 const { data } = await octokit.issues.create({
-                  owner, repo: repoName, title: issueTitle, body, labels: ['evo-scan'],
+                  owner,
+                  repo: repoName,
+                  title: issueTitle,
+                  body,
+                  labels: ['evo-scan'],
                 });
                 issue = data;
               } else {
@@ -205,7 +214,9 @@ async function startScan({ octokit, token, options }) {
             let copilotAssigned = false;
             if (assignCopilot && issue) {
               const assignment = await assignCopilotToIssue(octokit, {
-                owner, repoName, issueNumber: issue.number,
+                owner,
+                repoName,
+                issueNumber: issue.number,
               });
               copilotAssigned = assignment.copilotAssigned;
             }
@@ -217,43 +228,60 @@ async function startScan({ octokit, token, options }) {
               issueNumber: issue.number,
               copilotAssigned,
             });
-          } catch (/** @type {any} */ err) {
-            result.issuesCreated.push({ title: rec.title, status: 'error', error: err.message });
+          } catch (err: unknown) {
+            result.issuesCreated.push({
+              title: rec.title,
+              status: 'error',
+              error: (err as Error).message,
+            });
           }
         }
       }
 
-      scanState.results.push(result);
+      scanState.results.push(result as unknown as ScanState['results'][number]);
     }
 
     scanState.status = 'completed';
     scanState.completedAt = new Date().toISOString();
     scanState.progress.currentRepo = null;
     console.log(`✓ Proaktiv skanning fullført: ${scanState.results.length} repos analysert.`);
-  } catch (/** @type {any} */ err) {
+  } catch (err: unknown) {
     scanState.status = 'error';
-    scanState.error = err.message;
+    scanState.error = (err as Error).message;
     scanState.completedAt = new Date().toISOString();
-    console.error('Proaktiv skanning feilet:', err.message);
+    console.error('Proaktiv skanning feilet:', (err as Error).message);
   }
+}
+
+interface SelectionEntry {
+  repoFullName: string;
+  recIndex: number;
+}
+
+interface CreateIssuesFromResultsParams {
+  octokit: Octokit;
+  assignCopilot: boolean;
+  selected: SelectionEntry[] | null;
 }
 
 /**
  * Create issues from existing scan results (batch / selective).
- *
- * @param {object} params
- * @param {import('@octokit/rest').Octokit} params.octokit
- * @param {boolean} params.assignCopilot
- * @param {Array|null} params.selected  — [{repoFullName, recIndex}] or null for all
- * @returns {Promise<{created, skipped, errors}>}
  */
-async function createIssuesFromResults({ octokit, assignCopilot, selected }) {
-  const created = [];
-  const skipped = [];
-  const errors = [];
+export async function createIssuesFromResults({
+  octokit,
+  assignCopilot,
+  selected,
+}: CreateIssuesFromResultsParams): Promise<{
+  created: unknown[];
+  skipped: unknown[];
+  errors: unknown[];
+}> {
+  const created: unknown[] = [];
+  const skipped: unknown[] = [];
+  const errors: unknown[] = [];
 
   // Build a lookup of selected items
-  let selectionMap = null;
+  let selectionMap: Record<string, Set<number>> | null = null;
   if (Array.isArray(selected) && selected.length > 0) {
     selectionMap = {};
     for (const s of selected) {
@@ -263,14 +291,26 @@ async function createIssuesFromResults({ octokit, assignCopilot, selected }) {
   }
 
   for (const result of scanState.results) {
-    if (result.recommendations.length === 0) continue;
+    const resultAny = result as unknown as {
+      repo: Record<string, unknown>;
+      recommendations: Array<Record<string, unknown>>;
+      issuesCreated: Array<Record<string, unknown>>;
+    };
 
-    if (selectionMap && !selectionMap[result.repo.fullName]) continue;
-    if (!selectionMap && result.issuesCreated.some((i) => i.status === 'created')) continue;
+    if (resultAny.recommendations.length === 0) continue;
 
-    const [owner, repoName] = result.repo.fullName.split('/');
+    const repoFullName = resultAny.repo.fullName as string;
+    if (selectionMap && !selectionMap[repoFullName]) continue;
+    if (
+      !selectionMap &&
+      resultAny.issuesCreated.some((i) => i.status === 'created')
+    ) {
+      continue;
+    }
 
-    let existingTitles = new Set();
+    const [owner, repoName] = repoFullName.split('/');
+
+    let existingTitles = new Set<string>();
     try {
       const existing = await octokit.paginate(octokit.issues.listForRepo, {
         owner,
@@ -284,40 +324,54 @@ async function createIssuesFromResults({ octokit, assignCopilot, selected }) {
       /* ignore */
     }
 
-    const repoSelection = selectionMap ? selectionMap[result.repo.fullName] : null;
+    const repoSelection = selectionMap ? selectionMap[repoFullName] : null;
 
-    for (let idx = 0; idx < result.recommendations.length; idx++) {
-      const rec = result.recommendations[idx];
+    for (let idx = 0; idx < resultAny.recommendations.length; idx++) {
+      const rec = resultAny.recommendations[idx];
 
       if (repoSelection && !repoSelection.has(idx)) continue;
 
-      if (result.issuesCreated.find((ic) => ic.title === rec.title && ic.status === 'created')) {
-        skipped.push({ repo: result.repo.fullName, title: rec.title, reason: 'already-created' });
+      if (
+        resultAny.issuesCreated.find(
+          (ic) => ic.title === rec.title && ic.status === 'created',
+        )
+      ) {
+        skipped.push({ repo: repoFullName, title: rec.title, reason: 'already-created' });
         continue;
       }
 
       const issueTitle = `[Evo] ${rec.title}`;
       if (existingTitles.has(issueTitle.toLowerCase().trim())) {
-        skipped.push({ repo: result.repo.fullName, title: rec.title, reason: 'duplicate' });
+        skipped.push({ repo: repoFullName, title: rec.title, reason: 'duplicate' });
         continue;
       }
 
       try {
-        const body = buildScanIssueBody(rec, { compact: true });
+        const body = buildScanIssueBody(rec as unknown as Parameters<typeof buildScanIssueBody>[0], {
+          compact: true,
+        });
         const labels = ['evo-scan'];
         if (rec.priority === 'high') labels.push('priority: high');
         if (rec.priority === 'medium') labels.push('priority: medium');
 
-        let issue;
+        let issue: { html_url: string; number: number };
         try {
           const { data } = await octokit.issues.create({
-            owner, repo: repoName, title: issueTitle, body, labels,
+            owner,
+            repo: repoName,
+            title: issueTitle,
+            body,
+            labels,
           });
           issue = data;
-        } catch (/** @type {any} */ labelErr) {
-          if (labelErr.status === 422) {
+        } catch (labelErr: unknown) {
+          if ((labelErr as { status?: number }).status === 422) {
             const { data } = await octokit.issues.create({
-              owner, repo: repoName, title: issueTitle, body, labels: ['evo-scan'],
+              owner,
+              repo: repoName,
+              title: issueTitle,
+              body,
+              labels: ['evo-scan'],
             });
             issue = data;
           } else throw labelErr;
@@ -326,39 +380,40 @@ async function createIssuesFromResults({ octokit, assignCopilot, selected }) {
         let copilotAssigned = false;
         if (assignCopilot && issue) {
           const assignment = await assignCopilotToIssue(octokit, {
-            owner, repoName, issueNumber: issue.number,
+            owner,
+            repoName,
+            issueNumber: issue.number,
           });
           copilotAssigned = assignment.copilotAssigned;
         }
 
         created.push({
-          repo: result.repo.fullName,
+          repo: repoFullName,
           title: rec.title,
           issueUrl: issue.html_url,
           copilotAssigned,
         });
-        result.issuesCreated.push({
+        resultAny.issuesCreated.push({
           title: rec.title,
           status: 'created',
           issueUrl: issue.html_url,
           issueNumber: issue.number,
           copilotAssigned,
         });
-      } catch (/** @type {any} */ err) {
-        errors.push({ repo: result.repo.fullName, title: rec.title, error: err.message });
-        result.issuesCreated.push({ title: rec.title, status: 'error', error: err.message });
+      } catch (err: unknown) {
+        errors.push({
+          repo: repoFullName,
+          title: rec.title,
+          error: (err as Error).message,
+        });
+        resultAny.issuesCreated.push({
+          title: rec.title,
+          status: 'error',
+          error: (err as Error).message,
+        });
       }
     }
   }
 
   return { created, skipped, errors };
 }
-
-module.exports = {
-  scanState,
-  resetScanState,
-  getScanStatus,
-  getScanResults,
-  startScan,
-  createIssuesFromResults,
-};

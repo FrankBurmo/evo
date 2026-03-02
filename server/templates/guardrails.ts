@@ -1,10 +1,9 @@
-'use strict';
-
 /**
  * Guardrails issue-templates.
  */
+import type { IssueTemplate } from '../types';
 
-function architectureAnalysisTemplate(repoName) {
+export function architectureAnalysisTemplate(repoName: string): IssueTemplate {
   return {
     title: `[Arkitekturanalyse] Dyp teknisk gjennomgang av ${repoName}`,
     labels: ['copilot:run', 'architecture', 'tech-debt'],
@@ -102,5 +101,3 @@ For hver anbefaling, inkluder:
 `,
   };
 }
-
-module.exports = { architectureAnalysisTemplate };

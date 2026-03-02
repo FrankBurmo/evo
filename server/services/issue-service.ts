@@ -1,29 +1,42 @@
-'use strict';
-
 /**
- * server/services/issue-service.js — Felles logikk for issue-opprettelse + Copilot-tildeling.
+ * server/services/issue-service.ts — Felles logikk for issue-opprettelse + Copilot-tildeling.
  *
  * Eliminerer duplikat mellom guardrails-, product-dev-, og engineering-velocity-ruter.
  */
+import { getOctokit, extractToken, assignCopilotToIssue } from '../github';
+import type { IssueTemplate } from '../types';
+import type { Request, Response } from 'express';
 
-const { getOctokit, extractToken, assignCopilotToIssue } = require('../github');
+interface CreateTemplateIssueParams {
+  token: string;
+  owner: string;
+  repoName: string;
+  template: IssueTemplate;
+  logPrefix: string;
+}
+
+interface CreateTemplateIssueResult {
+  success: boolean;
+  issueUrl: string;
+  issueNumber: number;
+  copilotAssigned: boolean;
+  note: string;
+}
 
 /**
  * Opprett et GitHub Issue fra en template og tildel Copilot-agenten.
- *
- * @param {object} opts
- * @param {string} opts.token   — GitHub PAT
- * @param {string} opts.owner   — Repo-eier
- * @param {string} opts.repoName — Repo-navn
- * @param {object} opts.template — { title, labels, body } fra template-funksjon
- * @param {string} opts.logPrefix — Prefiks for console.log (f.eks. 'Architecture analysis')
- * @returns {Promise<object>} — Standardisert respons-objekt for ruten
  */
-async function createTemplateIssue({ token, owner, repoName, template, logPrefix }) {
+export async function createTemplateIssue({
+  token,
+  owner,
+  repoName,
+  template,
+  logPrefix,
+}: CreateTemplateIssueParams): Promise<CreateTemplateIssueResult> {
   const octokit = getOctokit(token);
   const { title, labels, body } = template;
 
-  let issue;
+  let issue: { html_url: string; number: number };
   try {
     const { data } = await octokit.issues.create({
       owner,
@@ -33,9 +46,13 @@ async function createTemplateIssue({ token, owner, repoName, template, logPrefix
       labels,
     });
     issue = data;
-  } catch (/** @type {any} */ error) {
+  } catch (error: unknown) {
     console.error(`Error creating ${logPrefix} issue:`, error);
-    throw { status: 500, error: 'Failed to create issue', message: error.message };
+    throw {
+      status: 500,
+      error: 'Failed to create issue',
+      message: (error as Error).message,
+    };
   }
 
   const { copilotAssigned, botLogin } = await assignCopilotToIssue(octokit, {
@@ -59,22 +76,27 @@ async function createTemplateIssue({ token, owner, repoName, template, logPrefix
   };
 }
 
+interface ValidatedIssueRequest {
+  token: string;
+  owner: string;
+  repoName: string;
+}
+
 /**
  * Express-middleware-hjelper: valider token, owner og repo fra request.
  * Returnerer { token, owner, repoName } eller sender feilrespons.
- *
- * @param {import('express').Request} req
- * @param {import('express').Response} res
- * @returns {{ token: string, owner: string, repoName: string } | null}
  */
-function validateIssueRequest(req, res) {
+export function validateIssueRequest(
+  req: Request,
+  res: Response,
+): ValidatedIssueRequest | null {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: 'GitHub token required' });
     return null;
   }
 
-  const { owner, repo: repoName } = req.body;
+  const { owner, repo: repoName } = req.body as { owner?: string; repo?: string };
   if (!owner || !repoName) {
     res.status(400).json({ error: 'Missing required fields: owner, repo' });
     return null;
@@ -82,5 +104,3 @@ function validateIssueRequest(req, res) {
 
   return { token, owner, repoName };
 }
-
-module.exports = { createTemplateIssue, validateIssueRequest };

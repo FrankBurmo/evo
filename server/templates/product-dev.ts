@@ -1,12 +1,11 @@
-'use strict';
-
 /**
  * Product Development issue-templates.
  *
  * Keys: ux-audit, market-opportunity, feature-discovery, developer-experience, product-market-fit
  */
+import type { IssueTemplate } from '../types';
 
-const PRODUCT_DEV_TEMPLATES = {
+export const PRODUCT_DEV_TEMPLATES: Record<string, (repoName: string) => IssueTemplate> = {
   'ux-audit': (repoName) => ({
     title: `[UX-audit] Brukeropplevelse-gjennomgang av ${repoName}`,
     labels: ['copilot:run', 'ux', 'product-development'],
@@ -351,5 +350,3 @@ Som en **erfaren startup-rådgiver og produktstrateg**, analyser dette repositor
 `,
   }),
 };
-
-module.exports = { PRODUCT_DEV_TEMPLATES };

@@ -1,18 +1,19 @@
-'use strict';
-
 /**
  * Scan issue body builder.
  */
+import type { Recommendation } from '../../packages/core';
 
-/**
- * Build a scan-issue body for a recommendation.
- * @param {object} rec - { title, description, priority, type, marketOpportunity }
- * @param {object} [options]
- * @param {boolean} [options.compact=false] - Use compact format for batch creation
- * @returns {string}
- */
-function buildScanIssueBody(rec, { compact = false } = {}) {
-  const priorityEmoji = { high: '🔴', medium: '🟡', low: '🔵' }[rec.priority] || '⚪';
+interface ScanIssueBodyOptions {
+  compact?: boolean;
+}
+
+export function buildScanIssueBody(
+  rec: Recommendation & { marketOpportunity?: string },
+  { compact = false }: ScanIssueBodyOptions = {},
+): string {
+  const priorityEmoji = ({ high: '🔴', medium: '🟡', low: '🔵' } as Record<string, string>)[
+    rec.priority
+  ] || '⚪';
 
   if (compact) {
     return `## ${priorityEmoji} ${rec.title}\n\n> Automatisk opprettet av **Evo** — proaktiv skanning.\n\n---\n\n### 📋 Beskrivelse\n\n${rec.description}\n\n${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}\n\n` : ''}---\n\n### ✅ Akseptansekriterier\n\n- [ ] Problemet er løst\n- [ ] Endringen er testet\n- [ ] PR er opprettet\n\n---\n\n*Opprettet av Evo • Prioritet: \`${rec.priority}\` • Type: \`${rec.type || 'generell'}\`*`;
@@ -43,5 +44,3 @@ ${rec.marketOpportunity ? `### 💡 Forretningsverdi\n\n${rec.marketOpportunity}
 *Opprettet av Evo proaktiv skanning • Prioritet: \`${rec.priority}\` • Type: \`${rec.type || 'generell'}\`*
 `;
 }
-
-module.exports = { buildScanIssueBody };

@@ -1,16 +1,16 @@
-'use strict';
-
 /**
  * Engineering Velocity issue-templates.
  *
  * Keys: cicd-maturity, dora-assessment, observability, release-hygiene, community-health
  */
+import type { IssueTemplate } from '../types';
 
-const ENGINEERING_VELOCITY_TEMPLATES = {
-  'cicd-maturity': (repoName) => ({
-    title: `[CI/CD-modenhet] Pipeline-analyse av ${repoName}`,
-    labels: ['copilot:run', 'ci-cd', 'engineering-velocity'],
-    body: `## ⚙️ CI/CD-modenhet Analyse
+export const ENGINEERING_VELOCITY_TEMPLATES: Record<string, (repoName: string) => IssueTemplate> =
+  {
+    'cicd-maturity': (repoName) => ({
+      title: `[CI/CD-modenhet] Pipeline-analyse av ${repoName}`,
+      labels: ['copilot:run', 'ci-cd', 'engineering-velocity'],
+      body: `## ⚙️ CI/CD-modenhet Analyse
 
 Dette issuet ble automatisk opprettet av **Evo** og ber om en grundig gjennomgang av CI/CD-pipelines og leveranseprosessen i dette repositoryet.
 
@@ -73,12 +73,12 @@ Som en **erfaren DevOps-ingeniør og platform engineer**, analyser hele CI/CD-op
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`cicd-maturity\`*
 `,
-  }),
+    }),
 
-  'dora-assessment': (repoName) => ({
-    title: `[DORA-analyse] Leveransehastighet-vurdering av ${repoName}`,
-    labels: ['copilot:run', 'dora-metrics', 'engineering-velocity'],
-    body: `## 📊 DORA-metrikker & Leveransehastighet
+    'dora-assessment': (repoName) => ({
+      title: `[DORA-analyse] Leveransehastighet-vurdering av ${repoName}`,
+      labels: ['copilot:run', 'dora-metrics', 'engineering-velocity'],
+      body: `## 📊 DORA-metrikker & Leveransehastighet
 
 Dette issuet ble automatisk opprettet av **Evo** og ber om en DORA-basert vurdering av leveransepraksis i dette repositoryet.
 
@@ -140,12 +140,12 @@ Som en **erfaren engineering manager og DevOps-forsker**, analyser dette reposit
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`dora-assessment\`*
 `,
-  }),
+    }),
 
-  'observability': (repoName) => ({
-    title: `[Observability] Monitorering og synlighets-analyse av ${repoName}`,
-    labels: ['copilot:run', 'observability', 'engineering-velocity'],
-    body: `## 🔭 Observability & Monitorering
+    'observability': (repoName) => ({
+      title: `[Observability] Monitorering og synlighets-analyse av ${repoName}`,
+      labels: ['copilot:run', 'observability', 'engineering-velocity'],
+      body: `## 🔭 Observability & Monitorering
 
 Dette issuet ble automatisk opprettet av **Evo** og ber om en grundig vurdering av observability-implementasjonen i dette repositoryet.
 
@@ -210,12 +210,12 @@ Som en **erfaren SRE (Site Reliability Engineer)**, analyser observability-praks
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`observability\`*
 `,
-  }),
+    }),
 
-  'release-hygiene': (repoName) => ({
-    title: `[Release-hygiene] Versjonering og release-prosess i ${repoName}`,
-    labels: ['copilot:run', 'release-management', 'engineering-velocity'],
-    body: `## 🏷️ Release-hygiene & Versjonering
+    'release-hygiene': (repoName) => ({
+      title: `[Release-hygiene] Versjonering og release-prosess i ${repoName}`,
+      labels: ['copilot:run', 'release-management', 'engineering-velocity'],
+      body: `## 🏷️ Release-hygiene & Versjonering
 
 Dette issuet ble automatisk opprettet av **Evo** og ber om en gjennomgang av release-praksis og versjonering i dette repositoryet.
 
@@ -278,12 +278,12 @@ Som en **erfaren release engineer og platform architect**, gjennomgå release-pr
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`release-hygiene\`*
 `,
-  }),
+    }),
 
-  'community-health': (repoName) => ({
-    title: `[Community-helse] CHAOSS-basert analyse av ${repoName}`,
-    labels: ['copilot:run', 'community', 'engineering-velocity'],
-    body: `## 🌱 Community-helse & Bærekraft
+    'community-health': (repoName) => ({
+      title: `[Community-helse] CHAOSS-basert analyse av ${repoName}`,
+      labels: ['copilot:run', 'community', 'engineering-velocity'],
+      body: `## 🌱 Community-helse & Bærekraft
 
 Dette issuet ble automatisk opprettet av **Evo** og ber om en CHAOSS-basert vurdering av prosjektets community-helse og langsiktige bærekraft.
 
@@ -352,7 +352,5 @@ Som en **erfaren open source community strateg**, analyser dette repositoryet ba
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`community-health\`*
 `,
-  }),
-};
-
-module.exports = { ENGINEERING_VELOCITY_TEMPLATES };
+    }),
+  };

@@ -1,28 +1,15 @@
-'use strict';
-
 /**
- * server/copilot-client.js — GitHub Copilot Models API-klient for Express-backend
- *
- * Tilbyr KI-drevet repoanalyse via GitHub Copilot Models API.
- * Inkluderer:
- *   - Prosjekttypespesifikke analyse-prompts (web, android, api, library, generelt)
- *   - Token-bucket rate limiting (respekterer Copilot-abonnementskvote)
- *   - Strukturert JSON-output med fallback-parsing
- *   - Retry-logikk ved forbigående feil
- *
- * Eksporterer:
- *   analyzeWithAI(params)         — analyser ett repo med KI
- *   createCopilotClient(options)  — opprett en rate-limited klient-instans
+ * server/copilot-client.ts — GitHub Copilot Models API-klient for Express-backend.
  */
-
-const { RateLimiter } = require('../packages/core');
+import { RateLimiter } from '../packages/core';
+import type { Recommendation, ProjectType } from '../packages/core';
 
 const COPILOT_ENDPOINT = 'https://api.githubcopilot.com/inference/chat/completions';
 const DEFAULT_MODEL = process.env.COPILOT_MODEL || 'openai/gpt-4.1';
+const FETCH_TIMEOUT_MS = parseInt(process.env.COPILOT_FETCH_TIMEOUT || '30000', 10);
 
 // ─── Rate Limiter ────────────────────────────────────────────────────────────
 
-// Global rate limiter — deles på tvers av alle forespørsler
 const rateLimiter = new RateLimiter({
   maxPerMinute: parseInt(process.env.COPILOT_RATE_LIMIT || '10', 10),
   burstSize: 3,
@@ -30,7 +17,12 @@ const rateLimiter = new RateLimiter({
 
 // ─── Prosjekttypespesifikke prompts ──────────────────────────────────────────
 
-const PROJECT_TYPE_PROMPTS = {
+interface TypeConfig {
+  focus: string;
+  areas: string;
+}
+
+export const PROJECT_TYPE_PROMPTS: Record<string, TypeConfig> = {
   'web-app': {
     focus: 'nettsted/web-app',
     areas: `Fokusér analysen på disse områdene for web-applikasjoner:
@@ -42,7 +34,6 @@ const PROJECT_TYPE_PROMPTS = {
 - **Sikkerhet:** CSP-headers, XSS-beskyttelse, HTTPS, avhengighetssårbarheter
 - **Moderne praksis:** TypeScript, ESLint, Prettier, Vitest/Jest, Storybook`,
   },
-
   'android-app': {
     focus: 'Android-applikasjon',
     areas: `Fokusér analysen på disse områdene for Android-apper:
@@ -55,7 +46,6 @@ const PROJECT_TYPE_PROMPTS = {
 - **CI/CD:** Automatisert bygging, signering, distribusjon via Fastlane eller GitHub Actions
 - **Ytelse:** Memory leaks, ANR-risiko, database-optimalisering (Room)`,
   },
-
   'api': {
     focus: 'API/backend-tjeneste',
     areas: `Fokusér analysen på disse områdene for API-er og backend-tjenester:
@@ -68,7 +58,6 @@ const PROJECT_TYPE_PROMPTS = {
 - **Distribusjon:** Docker, CI/CD-pipeline, miljøvariabler, secrets management
 - **Skalerbarhet:** Caching-strategi (Redis), køer (BullMQ), horisontell skalering`,
   },
-
   'library': {
     focus: 'bibliotek/npm-pakke',
     areas: `Fokusér analysen på disse områdene for biblioteker og npm-pakker:
@@ -81,7 +70,6 @@ const PROJECT_TYPE_PROMPTS = {
 - **Kompatibilitet:** Peer dependencies, Node.js-versjonsstøtte, browser-kompatibilitet
 - **DX (Developer Experience):** Gode feilmeldinger, debugging-verktøy, playground/eksempler`,
   },
-
   'docs': {
     focus: 'dokumentasjonsside',
     areas: `Fokusér analysen på disse områdene for dokumentasjonssider:
@@ -91,7 +79,6 @@ const PROJECT_TYPE_PROMPTS = {
 - **Tilgjengelighet:** Skjermleser-vennlighet, kontrastforhold, tastaturnavigasjon
 - **Distribusjon:** CI/CD for automatisk publisering, forhåndsvisning av PRs`,
   },
-
   'other': {
     focus: 'generelt programvareprosjekt',
     areas: `Analyser prosjektet bredt på tvers av disse områdene:
@@ -104,54 +91,57 @@ const PROJECT_TYPE_PROMPTS = {
   },
 };
 
-// ─── Hovedfunksjon: analyser med KI ──────────────────────────────────────────
+// ─── Typer ────────────────────────────────────────────────────────────────────
 
-/**
- * Analyser ett repo med GitHub Copilot Models API.
- *
- * @param {object} params
- * @param {string} params.token - GitHub PAT med models:read scope
- * @param {string} [params.model] - AI-modell (default: openai/gpt-4.1)
- * @param {object} params.repo - Repo-objekt (fra analyzeRepository/deepAnalyzeRepo)
- * @param {object} [params.deepInsights] - Dyp analyse-data (fra deepAnalyzeRepo)
- * @param {string[]} [params.existingRecs] - Titler på eksisterende regelbaserte anbefalinger
- * @param {boolean} [params.skipRateLimit] - Hopp over rate limiting (for testing)
- * @returns {Promise<{summary: string, recommendations: Array, projectType: string}>}
- */
-async function analyzeWithAI({
+export interface AIAnalysisResult {
+  summary: string;
+  recommendations: Recommendation[];
+  projectType: ProjectType;
+}
+
+interface AnalyzeWithAIParams {
+  token: string;
+  model?: string;
+  repo: Record<string, unknown>;
+  deepInsights?: Record<string, unknown> | null;
+  existingRecs?: string[];
+  skipRateLimit?: boolean;
+}
+
+// ─── Hovedfunksjon ────────────────────────────────────────────────────────────
+
+export async function analyzeWithAI({
   token,
   model = DEFAULT_MODEL,
   repo,
   deepInsights = null,
   existingRecs = [],
   skipRateLimit = false,
-}) {
+}: AnalyzeWithAIParams): Promise<AIAnalysisResult> {
   if (!token) {
     throw new Error('GitHub token er påkrevd for Copilot Models API');
   }
 
-  // Rate limiting
   if (!skipRateLimit) {
     await rateLimiter.acquire();
   }
 
-  const projectType = deepInsights?.projectType || repo.projectType || 'other';
+  const projectType =
+    ((deepInsights?.projectType as ProjectType) || (repo.projectType as ProjectType) || 'other');
   const typeConfig = PROJECT_TYPE_PROMPTS[projectType] || PROJECT_TYPE_PROMPTS['other'];
 
   const systemPrompt = buildSystemPrompt(typeConfig);
   const userPrompt = buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig });
 
-  // Retry-logikk: opptil 2 forsøk ved forbigående feil
-  let lastError;
+  let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await callCopilotAPI({ token, model, systemPrompt, userPrompt });
       return { ...result, projectType };
-    } catch (/** @type {any} */ err) {
+    } catch (err: unknown) {
       lastError = err;
-
-      // Retry kun ved 429 (rate limit) eller 5xx (serverfeil)
-      if (err.statusCode === 429 || (err.statusCode >= 500 && err.statusCode < 600)) {
+      const statusCode = (err as { statusCode?: number }).statusCode;
+      if (statusCode === 429 || (statusCode !== undefined && statusCode >= 500 && statusCode < 600)) {
         const waitMs = attempt === 0 ? 3000 : 6000;
         await sleep(waitMs);
         continue;
@@ -164,7 +154,7 @@ async function analyzeWithAI({
 
 // ─── Prompt-bygging ──────────────────────────────────────────────────────────
 
-function buildSystemPrompt(typeConfig) {
+function buildSystemPrompt(typeConfig: TypeConfig): string {
   return `Du er en erfaren software-arkitekt og produktstrateg som spesialiserer seg på ${typeConfig.focus}.
 Analyser dette GitHub-repositoryet og gi 3-5 korte, konkrete forbedringsforslag.
 
@@ -190,25 +180,34 @@ VIKTIG:
 - Bruk norsk i alle tekster.`;
 }
 
-function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
-  const parts = [];
+function buildUserPrompt(params: {
+  repo: Record<string, unknown>;
+  deepInsights: Record<string, unknown> | null;
+  existingRecs: string[];
+  typeConfig: TypeConfig;
+}): string {
+  const { repo, deepInsights, existingRecs, typeConfig } = params;
+  const parts: string[] = [];
 
-  // Repo-metadata
-  parts.push(`GitHub-repo: ${repo.fullName || repo.full_name}`);
+  parts.push(`GitHub-repo: ${(repo.fullName as string) || (repo.full_name as string)}`);
   parts.push(`Prosjekttype: ${typeConfig.focus}`);
-  parts.push(`Språk: ${repo.language || 'ukjent'}`);
-  parts.push(`Beskrivelse: ${repo.description || '(ingen beskrivelse)'}`);
-  parts.push(`Synlighet: ${repo.visibility || (repo.private ? 'private' : 'public')}`);
-  parts.push(`Stjerner: ${repo.stars ?? repo.stargazers_count ?? 0}, Forks: ${repo.forks ?? repo.forks_count ?? 0}, Åpne issues: ${repo.openIssues ?? repo.open_issues_count ?? 0}`);
+  parts.push(`Språk: ${(repo.language as string) || 'ukjent'}`);
+  parts.push(`Beskrivelse: ${(repo.description as string) || '(ingen beskrivelse)'}`);
+  parts.push(
+    `Synlighet: ${(repo.visibility as string) || (repo.private ? 'private' : 'public')}`,
+  );
+  parts.push(
+    `Stjerner: ${(repo.stars as number) ?? (repo.stargazers_count as number) ?? 0}, Forks: ${(repo.forks as number) ?? (repo.forks_count as number) ?? 0}, Åpne issues: ${(repo.openIssues as number) ?? (repo.open_issues_count as number) ?? 0}`,
+  );
 
-  const updatedAt = repo.updatedAt || repo.updated_at;
+  const updatedAt = (repo.updatedAt as string) || (repo.updated_at as string);
   if (updatedAt) {
     parts.push(`Siste oppdatering: ${new Date(updatedAt).toLocaleDateString('nb-NO')}`);
   }
 
-  parts.push(`Lisens: ${repo.license?.spdx_id || repo.license?.name || 'ingen'}`);
+  const license = repo.license as { spdx_id?: string; name?: string } | null;
+  parts.push(`Lisens: ${license?.spdx_id || license?.name || 'ingen'}`);
 
-  // Dyp innsikt (om tilgjengelig)
   if (deepInsights) {
     parts.push('');
     parts.push('--- Dyp analyse ---');
@@ -217,10 +216,11 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
     parts.push(`Har tester: ${deepInsights.hasTests ? 'ja' : 'nei'}`);
     parts.push(`Har CONTRIBUTING.md: ${deepInsights.hasContributing ? 'ja' : 'nei'}`);
     parts.push(`Har SECURITY.md: ${deepInsights.hasSecurity ? 'ja' : 'nei'}`);
-    parts.push(`Antall commits siste 30 dager: ${deepInsights.recentCommitsCount ?? 'ukjent'}`);
-    parts.push(`Antall filer i rot: ${deepInsights.rootFileCount ?? 'ukjent'}`);
+    parts.push(
+      `Antall commits siste 30 dager: ${(deepInsights.recentCommitsCount as number) ?? 'ukjent'}`,
+    );
+    parts.push(`Antall filer i rot: ${(deepInsights.rootFileCount as number) ?? 'ukjent'}`);
 
-    // Verktøy og konfigurasjon
     if (deepInsights.hasTypeScript !== undefined) {
       parts.push(`TypeScript: ${deepInsights.hasTypeScript ? 'ja' : 'nei'}`);
     }
@@ -240,33 +240,28 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
       parts.push(`Lockfile: ${deepInsights.hasLockfile ? 'ja' : 'nei'}`);
     }
 
-    // Filtre-metrikker
-    if (deepInsights.fileTreeMetrics) {
-      const m = deepInsights.fileTreeMetrics;
+    const m = deepInsights.fileTreeMetrics as Record<string, unknown> | null;
+    if (m) {
       parts.push('');
       parts.push('--- Filstruktur-metrikker ---');
       parts.push(`Totalt filer: ${m.totalFiles}, mapper: ${m.totalDirs}`);
-      parts.push(`Kodefiler: ${m.byCategory.code}, docs: ${m.byCategory.docs}, config: ${m.byCategory.config}, styles: ${m.byCategory.styles}`);
+      const cat = m.byCategory as Record<string, number>;
+      parts.push(
+        `Kodefiler: ${cat.code}, docs: ${cat.docs}, config: ${cat.config}, styles: ${cat.styles}`,
+      );
       parts.push(`Testfiler: ${m.testFileCount}`);
-      parts.push(`Total kodestørrelse: ${(m.totalCodeSize / 1024).toFixed(1)} KB`);
+      parts.push(
+        `Total kodestørrelse: ${(((m.totalCodeSize as number) || 0) / 1024).toFixed(1)} KB`,
+      );
       parts.push(`Maks mappenivå: ${m.maxDepth}`);
-      if (m.sourceDirs.length > 0) {
-        parts.push(`Kilde-mapper: ${m.sourceDirs.join(', ')}`);
-      }
-      if (m.topExtensions.length > 0) {
-        parts.push(`Topp filtyper: ${m.topExtensions.map(e => `${e.ext} (${e.count})`).join(', ')}`);
-      }
-      if (m.topLevelDirs.length > 0) {
-        parts.push(`Toppnivå-mapper: ${m.topLevelDirs.join(', ')}`);
-      }
     }
 
-    // Filtre-oversikt (komprimert)
-    if (deepInsights.fileTreeSummary && deepInsights.fileTreeSummary.length > 0) {
-      const totalFiles = deepInsights.fileTreeMetrics?.totalFiles || deepInsights.fileTreeSummary.length;
+    const fts = deepInsights.fileTreeSummary as string[] | null;
+    if (fts && fts.length > 0) {
+      const totalFiles = (m?.totalFiles as number) || fts.length;
       parts.push('');
-      parts.push(`--- Filtre (${deepInsights.fileTreeSummary.length} av ${totalFiles} filer) ---`);
-      parts.push(deepInsights.fileTreeSummary.join('\n'));
+      parts.push(`--- Filtre (${fts.length} av ${totalFiles} filer) ---`);
+      parts.push(fts.join('\n'));
     }
 
     if (deepInsights.readmeSummary) {
@@ -274,9 +269,8 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
     }
 
     if (deepInsights.packageJsonContent) {
-      // Trekk ut relevante felter for å spare tokens
       try {
-        const pkg = JSON.parse(deepInsights.packageJsonContent);
+        const pkg = JSON.parse(deepInsights.packageJsonContent as string);
         const relevantPkg = {
           name: pkg.name,
           version: pkg.version,
@@ -287,44 +281,51 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
         };
         parts.push(`\npackage.json (sammendrag):\n${JSON.stringify(relevantPkg, null, 2)}`);
       } catch {
-        parts.push(`\npackage.json:\n${deepInsights.packageJsonContent.slice(0, 2000)}`);
+        parts.push(
+          `\npackage.json:\n${(deepInsights.packageJsonContent as string).slice(0, 2000)}`,
+        );
       }
     }
 
     if (deepInsights.buildGradleContent) {
-      parts.push(`\nbuild.gradle (utdrag):\n${deepInsights.buildGradleContent.slice(0, 2000)}`);
+      parts.push(
+        `\nbuild.gradle (utdrag):\n${(deepInsights.buildGradleContent as string).slice(0, 2000)}`,
+      );
     }
 
-    // Konfigurasjonsfiler
-    if (deepInsights.configFiles) {
-      const configNames = Object.keys(deepInsights.configFiles);
+    const configFiles = deepInsights.configFiles as Record<string, string> | null;
+    if (configFiles) {
+      const configNames = Object.keys(configFiles);
       if (configNames.length > 0) {
         parts.push('');
         parts.push('--- Konfigurasjonsfiler ---');
-        for (const [fileName, content] of Object.entries(deepInsights.configFiles)) {
-          // Inkluder korte utdrag for å spare tokens
-          const truncated = content.length > 1000 ? content.slice(0, 1000) + '\n...(avkuttet)' : content;
+        for (const [fileName, content] of Object.entries(configFiles)) {
+          const truncated =
+            content.length > 1000 ? content.slice(0, 1000) + '\n...(avkuttet)' : content;
           parts.push(`\n${fileName}:\n${truncated}`);
         }
       }
     }
 
-    // Workflow-filer
-    if (deepInsights.workflowFiles && deepInsights.workflowFiles.length > 0) {
+    const workflowFiles = deepInsights.workflowFiles as Array<{
+      name: string;
+      content: string;
+    }> | null;
+    if (workflowFiles && workflowFiles.length > 0) {
       parts.push('');
       parts.push('--- GitHub Actions Workflows ---');
-      for (const wf of deepInsights.workflowFiles) {
-        const truncated = wf.content.length > 800 ? wf.content.slice(0, 800) + '\n...(avkuttet)' : wf.content;
+      for (const wf of workflowFiles) {
+        const truncated =
+          wf.content.length > 800 ? wf.content.slice(0, 800) + '\n...(avkuttet)' : wf.content;
         parts.push(`\n${wf.name}:\n${truncated}`);
       }
     }
   }
 
-  // Eksisterende anbefalinger (for dedup)
   parts.push('');
   parts.push('Allerede identifiserte forbedringsforslag (IKKE gjenta disse):');
   if (existingRecs.length > 0) {
-    existingRecs.forEach(r => parts.push(`- ${r}`));
+    existingRecs.forEach((r) => parts.push(`- ${r}`));
   } else {
     parts.push('(ingen)');
   }
@@ -337,20 +338,22 @@ function buildUserPrompt({ repo, deepInsights, existingRecs, typeConfig }) {
 
 // ─── Copilot API-kall ────────────────────────────────────────────────────────
 
-// A8: Konfigurerbar timeout for eksterne API-kall (standard: 30 sekunder)
-const FETCH_TIMEOUT_MS = parseInt(process.env.COPILOT_FETCH_TIMEOUT || '30000', 10);
-
-async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
-  // A8: AbortController med timeout for å unngå hengende forespørsler
+async function callCopilotAPI(params: {
+  token: string;
+  model: string;
+  systemPrompt: string;
+  userPrompt: string;
+}): Promise<{ summary: string; recommendations: Recommendation[] }> {
+  const { token, model, systemPrompt, userPrompt } = params;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-  let response;
+  let response: Response;
   try {
     response = await fetch(COPILOT_ENDPOINT, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -364,10 +367,12 @@ async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
       }),
       signal: controller.signal,
     });
-  } catch (/** @type {any} */ err) {
+  } catch (err: unknown) {
     clearTimeout(timeoutId);
-    if (err.name === 'AbortError') {
-      const error = /** @type {Error & {statusCode: number}} */ (new Error(`Copilot API timeout etter ${FETCH_TIMEOUT_MS}ms`));
+    if ((err as Error).name === 'AbortError') {
+      const error = new Error(`Copilot API timeout etter ${FETCH_TIMEOUT_MS}ms`) as Error & {
+        statusCode: number;
+      };
       error.statusCode = 504;
       throw error;
     }
@@ -378,27 +383,24 @@ async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-  const error = /** @type {Error & {statusCode: number}} */ (new Error(`Copilot API feil (${response.status}): ${text.slice(0, 300)}`));
+    const error = new Error(
+      `Copilot API feil (${response.status}): ${text.slice(0, 300)}`,
+    ) as Error & { statusCode: number };
     error.statusCode = response.status;
     throw error;
   }
 
-  const data = /** @type {any} */ (await response.json());
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
   const content = data.choices?.[0]?.message?.content || '';
-
-  // Parse JSON fra svaret — støtter både rent JSON og JSON i markdown-blokker
   return parseAIResponse(content);
 }
 
-/**
- * Parse og valider KI-responsen. Robust mot ulike formater.
- */
-function parseAIResponse(content) {
-  // Fjern eventuell markdown code-block wrapper
+function parseAIResponse(content: string): { summary: string; recommendations: Recommendation[] } {
   let cleaned = content.trim();
   cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
 
-  // Forsøk 1: Parse hele strengen
   try {
     const parsed = JSON.parse(cleaned);
     return validateAIResult(parsed);
@@ -406,7 +408,6 @@ function parseAIResponse(content) {
     // ignore
   }
 
-  // Forsøk 2: Finn JSON-objekt i teksten
   const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
   if (jsonMatch) {
     try {
@@ -417,17 +418,13 @@ function parseAIResponse(content) {
     }
   }
 
-  // Forsøk 3: Returner fallback
-  return {
-    summary: 'KI-analyse fullført, men svaret kunne ikke parses strukturert.',
-    recommendations: [],
-  };
+  return { summary: 'KI-analyse fullført, men svaret kunne ikke parses strukturert.', recommendations: [] };
 }
 
-/**
- * Valider og normaliser KI-resultat.
- */
-function validateAIResult(parsed) {
+function validateAIResult(parsed: unknown): {
+  summary: string;
+  recommendations: Recommendation[];
+} {
   const validPriorities = new Set(['high', 'medium', 'low']);
   const validTypes = new Set([
     'documentation', 'testing', 'ci', 'security', 'performance',
@@ -435,64 +432,54 @@ function validateAIResult(parsed) {
     'maintenance', 'activity', 'visibility',
   ]);
 
+  const p = parsed as Record<string, unknown>;
   const result = {
-    summary: typeof parsed.summary === 'string' ? parsed.summary : '',
-    recommendations: [],
+    summary: typeof p.summary === 'string' ? p.summary : '',
+    recommendations: [] as Recommendation[],
   };
 
-  if (Array.isArray(parsed.recommendations)) {
-    result.recommendations = parsed.recommendations
-      .filter(r => r && typeof r.title === 'string')
-      .map(r => ({
-        title: r.title.slice(0, 120),
-        description: typeof r.description === 'string' ? r.description : r.title,
-        priority: validPriorities.has(r.priority) ? r.priority : 'medium',
-        type: validTypes.has(r.type) ? r.type : 'architecture',
-        source: 'ai',
+  if (Array.isArray(p.recommendations)) {
+    result.recommendations = (p.recommendations as Record<string, unknown>[])
+      .filter((r) => r && typeof r.title === 'string')
+      .map((r) => ({
+        title: (r.title as string).slice(0, 120),
+        description: typeof r.description === 'string' ? r.description : r.title as string,
+        priority: validPriorities.has(r.priority as string)
+          ? (r.priority as 'high' | 'medium' | 'low')
+          : 'medium',
+        type: validTypes.has(r.type as string) ? (r.type as string) : 'architecture',
+        source: 'ai' as const,
       }));
   }
 
   return result;
 }
 
-// ─── Hjelpefunksjoner ────────────────────────────────────────────────────────
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// ─── Factory for klient-instans (for fremtidig konfigurerbarhet) ─────────────
+// ─── Factory for klient-instans ──────────────────────────────────────────────
 
-/**
- * Opprett en konfigurert Copilot-klient.
- * Returnerer et objekt med analyzeWithAI-metode og tilgang til rate limiter.
- *
- * @param {object} [options]
- * @param {string} [options.model] - Standard modell
- * @param {number} [options.maxPerMinute] - Maks API-kall per minutt
- * @returns {{ analyzeWithAI: Function, rateLimiter: RateLimiter }}
- */
-function createCopilotClient({ model, maxPerMinute } = {}) {
+interface CopilotClientOptions {
+  model?: string;
+  maxPerMinute?: number;
+}
+
+export function createCopilotClient(options: CopilotClientOptions = {}): {
+  analyzeWithAI: typeof analyzeWithAI;
+  rateLimiter: RateLimiter;
+} {
+  const { model, maxPerMinute } = options;
   const clientModel = model || DEFAULT_MODEL;
   const clientLimiter = maxPerMinute
     ? new RateLimiter({ maxPerMinute, burstSize: Math.min(maxPerMinute, 3) })
     : rateLimiter;
 
   return {
-    analyzeWithAI: (params) =>
-      analyzeWithAI({
-        ...params,
-        model: params.model || clientModel,
-      }),
+    analyzeWithAI: (params) => analyzeWithAI({ ...params, model: params.model || clientModel }),
     rateLimiter: clientLimiter,
   };
 }
 
-// ─── Eksporter ────────────────────────────────────────────────────────────────
-
-module.exports = {
-  analyzeWithAI,
-  createCopilotClient,
-  RateLimiter,
-  PROJECT_TYPE_PROMPTS,
-};
+export { RateLimiter };

@@ -1,81 +1,107 @@
-'use strict';
+/**
+ * packages/cli/src/output.ts — ANSI-farget konsolle-output for CLI.
+ */
+import type { Recommendation } from '../../../packages/core';
 
 // ANSI-farger uten eksterne avhengigheter
 const c = {
-  reset:   '\x1b[0m',
-  bold:    '\x1b[1m',
-  dim:     '\x1b[2m',
-  red:     '\x1b[31m',
-  green:   '\x1b[32m',
-  yellow:  '\x1b[33m',
-  blue:    '\x1b[34m',
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  dim: '\x1b[2m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  blue: '\x1b[34m',
   magenta: '\x1b[35m',
-  cyan:    '\x1b[36m',
-  white:   '\x1b[37m',
-  gray:    '\x1b[90m',
+  cyan: '\x1b[36m',
+  white: '\x1b[37m',
+  gray: '\x1b[90m',
 };
 
-const PRIORITY_COLOR = {
-  high:    c.red,
-  medium:  c.yellow,
-  low:     c.cyan,
-  info:    c.green,
+const PRIORITY_COLOR: Record<string, string> = {
+  high: c.red,
+  medium: c.yellow,
+  low: c.cyan,
+  info: c.green,
   success: c.green,
 };
 
-const PRIORITY_LABEL = {
-  high:    '🔴 HIGH  ',
-  medium:  '🟡 MEDIUM',
-  low:     '🔵 LOW   ',
-  info:    '✅ INFO  ',
+const PRIORITY_LABEL: Record<string, string> = {
+  high: '🔴 HIGH  ',
+  medium: '🟡 MEDIUM',
+  low: '🔵 LOW   ',
+  info: '✅ INFO  ',
   success: '✅ OK    ',
 };
 
-function printBanner(version) {
+export function printBanner(version: string): void {
   console.log('');
   console.log(`${c.bold}${c.green}  ███████╗██╗   ██╗ ██████╗${c.reset}`);
   console.log(`${c.bold}${c.green}  ██╔════╝██║   ██║██╔═══██╗${c.reset}`);
   console.log(`${c.bold}${c.green}  █████╗  ██║   ██║██║   ██║${c.reset}`);
   console.log(`${c.bold}${c.green}  ██╔══╝  ╚██╗ ██╔╝██║   ██║${c.reset}`);
   console.log(`${c.bold}${c.green}  ███████╗ ╚████╔╝ ╚██████╔╝${c.reset}`);
-  console.log(`${c.bold}${c.green}  ╚══════╝  ╚═══╝   ╚═════╝ ${c.reset}  ${c.dim}v${version}${c.reset}`);
+  console.log(
+    `${c.bold}${c.green}  ╚══════╝  ╚═══╝   ╚═════╝ ${c.reset}  ${c.dim}v${version}${c.reset}`,
+  );
   console.log('');
   console.log(`  ${c.dim}Produktene dine vokser kontinuerlig – automatisk.${c.reset}`);
   console.log('');
 }
 
-function printError(msg) {
+export function printError(msg: string): void {
   console.error(`\n${c.red}${c.bold}✗ Feil:${c.reset} ${msg}\n`);
 }
 
-function printInfo(msg) {
+export function printInfo(msg: string): void {
   console.log(`${c.cyan}ℹ${c.reset} ${msg}`);
 }
 
-function printSuccess(msg) {
+export function printSuccess(msg: string): void {
   console.log(`${c.green}✓${c.reset} ${msg}`);
 }
 
-function printProgress(current, total, repoName) {
+export function printProgress(current: number, total: number, repoName: string): void {
   const pct = Math.round((current / total) * 100);
   const bar = buildProgressBar(pct, 20);
   process.stdout.write(
-    `\r  ${c.dim}[${bar}]${c.reset} ${c.bold}${pct}%${c.reset} ${c.gray}(${current}/${total})${c.reset} ${repoName.slice(0, 30).padEnd(30)}`
+    `\r  ${c.dim}[${bar}]${c.reset} ${c.bold}${pct}%${c.reset} ${c.gray}(${current}/${total})${c.reset} ${repoName.slice(0, 30).padEnd(30)}`,
   );
 }
 
-function buildProgressBar(pct, width) {
+function buildProgressBar(pct: number, width: number): string {
   const filled = Math.round((pct / 100) * width);
   return `${c.green}${'█'.repeat(filled)}${c.reset}${c.dim}${'░'.repeat(width - filled)}${c.reset}`;
 }
 
-function printRepoResult(result, opts = {}) {
-  const { createIssues, dryRun } = opts;
+interface RepoResult {
+  repo: {
+    name: string;
+    description?: string;
+    visibility?: string;
+    projectTypeLabel?: string;
+    stars?: number;
+    forks?: number;
+    openIssues?: number;
+    language?: string;
+  };
+  recommendations: Array<Recommendation & { issueUrl?: string; marketOpportunity?: string }>;
+  aiSummary?: string;
+}
+
+interface PrintRepoResultOptions {
+  createIssues?: boolean;
+  dryRun?: boolean;
+}
+
+export function printRepoResult(result: RepoResult, opts: PrintRepoResultOptions = {}): void {
+  const { dryRun } = opts;
   const { repo, recommendations, aiSummary } = result;
 
-  const visibilityTag = repo.visibility === 'private'
-    ? `${c.dim}[privat]${c.reset}`
-    : `${c.green}[offentlig]${c.reset}`;
+  const visibilityTag =
+    repo.visibility === 'private'
+      ? `${c.dim}[privat]${c.reset}`
+      : `${c.green}[offentlig]${c.reset}`;
 
   const projectTypeTag = repo.projectTypeLabel
     ? ` ${c.dim}[${repo.projectTypeLabel}]${c.reset}`
@@ -87,13 +113,13 @@ function printRepoResult(result, opts = {}) {
   }
   console.log(
     `  ${c.dim}⭐ ${repo.stars}  🍴 ${repo.forks}  🐛 ${repo.openIssues}  ` +
-    `${repo.language || 'ukjent språk'}${c.reset}`
+      `${repo.language || 'ukjent språk'}${c.reset}`,
   );
 
   if (aiSummary) {
     console.log(`\n  ${c.magenta}${c.bold}AI-analyse:${c.reset}`);
     const lines = aiSummary.split('\n').slice(0, 5);
-    lines.forEach(l => l.trim() && console.log(`  ${c.magenta}${l}${c.reset}`));
+    lines.forEach((l) => l.trim() && console.log(`  ${c.magenta}${l}${c.reset}`));
   }
 
   if (recommendations.length === 0) {
@@ -111,21 +137,35 @@ function printRepoResult(result, opts = {}) {
     }
     if (rec.issueUrl) {
       const action = dryRun ? '(dry-run)' : '';
-      console.log(`     ${c.green}→ Issue opprettet:${c.reset} ${rec.issueUrl} ${c.dim}${action}${c.reset}`);
+      console.log(
+        `     ${c.green}→ Issue opprettet:${c.reset} ${rec.issueUrl} ${c.dim}${action}${c.reset}`,
+      );
     }
   });
 }
 
-function printSummary(results, opts = {}) {
+interface SummaryResult {
+  recommendations: Array<Recommendation & { issueUrl?: string }>;
+}
+
+interface PrintSummaryOptions {
+  createIssues?: boolean;
+  dryRun?: boolean;
+  elapsed?: number;
+}
+
+export function printSummary(results: SummaryResult[], opts: PrintSummaryOptions = {}): void {
   const { createIssues, dryRun, elapsed } = opts;
 
   const total = results.length;
   const totalRecs = results.reduce((s, r) => s + r.recommendations.length, 0);
   const highCount = results.reduce(
-    (s, r) => s + r.recommendations.filter(x => x.priority === 'high').length, 0
+    (s, r) => s + r.recommendations.filter((x) => x.priority === 'high').length,
+    0,
   );
   const issuesCreated = results.reduce(
-    (s, r) => s + r.recommendations.filter(x => x.issueUrl).length, 0
+    (s, r) => s + r.recommendations.filter((x) => x.issueUrl).length,
+    0,
   );
 
   console.log('\n');
@@ -148,5 +188,3 @@ function printSummary(results, opts = {}) {
   console.log(`  ${'─'.repeat(50)}`);
   console.log('');
 }
-
-module.exports = { printBanner, printError, printInfo, printSuccess, printProgress, printRepoResult, printSummary };

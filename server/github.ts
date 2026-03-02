@@ -1,14 +1,13 @@
 /**
  * GitHub API helpers — Octokit instantiation and Copilot assignment.
  */
-const { Octokit } = require('@octokit/rest');
+import { Octokit } from '@octokit/rest';
+import type { Request } from 'express';
 
 /**
  * Create an authenticated Octokit instance.
- * @param {string} [token] - GitHub PAT (falls back to GITHUB_TOKEN env var)
- * @returns {Octokit}
  */
-function getOctokit(token) {
+export function getOctokit(token?: string): Octokit {
   return new Octokit({
     auth: token || process.env.GITHUB_TOKEN,
   });
@@ -19,30 +18,36 @@ function getOctokit(token) {
  * Returns null when no token is available.
  *
  * A7: Case-insensitiv — støtter 'Bearer', 'bearer', 'BEARER' etc.
- *
- * @param {import('express').Request} req
- * @returns {string|null}
  */
-function extractToken(req) {
-  const authHeader = req.headers.authorization || '';
+export function extractToken(req: Request): string | null {
+  const authHeader = (req.headers.authorization as string) || '';
   const match = authHeader.match(/^bearer\s+(.+)$/i);
   return (match ? match[1] : null) || process.env.GITHUB_TOKEN || null;
 }
 
+interface AssignCopilotOptions {
+  owner: string;
+  repoName: string;
+  issueNumber: number;
+}
+
+interface AssignCopilotResult {
+  copilotAssigned: boolean;
+  botLogin?: string;
+}
+
 /**
  * Assign the Copilot coding-agent to an existing issue via GraphQL.
- *
- * @param {Octokit} octokit – authenticated Octokit instance
- * @param {object} opts
- * @param {string} opts.owner
- * @param {string} opts.repoName
- * @param {number} opts.issueNumber
- * @returns {Promise<{copilotAssigned: boolean, botLogin?: string}>}
  */
-async function assignCopilotToIssue(octokit, { owner, repoName, issueNumber }) {
+export async function assignCopilotToIssue(
+  octokit: Octokit,
+  { owner, repoName, issueNumber }: AssignCopilotOptions,
+): Promise<AssignCopilotResult> {
   try {
     // 1. Get issue node ID
-    const issueQuery = await octokit.graphql(
+    const issueQuery = await octokit.graphql<{
+      repository: { issue: { id: string } };
+    }>(
       `query GetIssueNodeId($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) {
           issue(number: $number) { id }
@@ -53,7 +58,13 @@ async function assignCopilotToIssue(octokit, { owner, repoName, issueNumber }) {
     const issueNodeId = issueQuery.repository.issue.id;
 
     // 2. Find assignable Copilot bot
-    const actorsQuery = await octokit.graphql(
+    const actorsQuery = await octokit.graphql<{
+      repository: {
+        suggestedActors: {
+          nodes: Array<{ id: string; login: string; __typename: string }>;
+        };
+      };
+    }>(
       `query RepositoryAssignableActors($owner: String!, $repo: String!) {
         repository(owner: $owner, name: $repo) {
           suggestedActors(first: 100, capabilities: CAN_BE_ASSIGNED) {
@@ -84,10 +95,8 @@ async function assignCopilotToIssue(octokit, { owner, repoName, issueNumber }) {
     );
 
     return { copilotAssigned: true, botLogin: copilotBot.login };
-  } catch (/** @type {any} */ err) {
-    console.warn('Copilot assignment failed:', err.message);
+  } catch (err: unknown) {
+    console.warn('Copilot assignment failed:', (err as Error).message);
     return { copilotAssigned: false };
   }
 }
-
-module.exports = { getOctokit, extractToken, assignCopilotToIssue };

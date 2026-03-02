@@ -20,6 +20,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **Fase D komplett:** Testdekning ~25% → ~70% — 219 tester (21 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
 - **TypeScript Trinn 1+2 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `tsconfig.base.json`, `tsconfig.json` (backend/CommonJS), `tsconfig.frontend.json` (ESNext/bundler), `packages/core/tsconfig.json`, `packages/cli/tsconfig.json` — `typecheck`-script kjører alle 4 i sekvens, **0 feil**
 - **TypeScript H2+H3 ferdig:** `commander` installert i root (bundled typer), `@ts-ignore` fjernet fra CLI. `packages/core/index.ts` med fullstendige interfaces (`Recommendation`, `ProjectType`, `Priority`, `RepositoryMeta`, `RepositoryAnalysis`, `RateLimiterOptions` m.fl.). Core kompilerer til `dist/index.js` + `dist/index.d.ts`. `prepare`-hook bygger core automatisk ved `npm install`.
+- **TypeScript H4+H5+H6 ferdig:** Alle `server/`-filer (20 stk) og `packages/cli/`-filer (6 stk) konvertert til TypeScript. Gamle `.js`-kilde-filer slettet. `vitest.backend.config.js` oppdatert med `tsx/cjs`-loader og `Object.defineProperty`-patch for test-mocking-kompatibilitet. `server/routes/*.ts` bruker `export = router` for CJS-interop. `packages/cli/src/analyzer.ts` eksporterer `detectProjectType` og `PROJECT_TYPE_LABELS`. Typecheck: **0 feil**. Tester: **219/219 passerer**.
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -494,61 +495,61 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 
 ---
 
-#### H4 — Utvid `server/types.d.ts` til full domenetype-definisjon
+#### H4 — Utvid `server/types.d.ts` til full domenetype-definisjon ✅ Ferdig
 
-- [ ] **H4a. ScanState og tilknyttede typer:**
+- [x] **H4a. ScanState og tilknyttede typer:**
   - `ScanStatus` — `'idle' | 'running' | 'completed' | 'error'`
   - `ScanRepoResult` — `{ repo: string, owner: string, recommendations: Recommendation[], issuesCreated?: number }`
   - `ScanState` — `{ status: ScanStatus, progress: number, results: ScanRepoResult[], error?: string, startedAt?: Date }`
-- [ ] **H4b. Issue-typer:**
+- [x] **H4b. Issue-typer:**
   - `IssueCreateParams` — `{ owner: string, repo: string, title: string, body: string, labels?: string[] }`
   - `IssueCreateResult` — `{ id: number, url: string, number: number }`
-- [ ] **H4c. Analyse-typer:**
+- [x] **H4c. Analyse-typer:**
   - `DeepInsights` — `{ fileTree?: string[], hasTests?: boolean, hasCI?: boolean, ... }`
   - `AIAnalysisResult` — `{ recommendations: Recommendation[], summary?: string, model?: string }`
   - `FullAnalysisResult` — `{ recommendations: Recommendation[], deepInsights?: DeepInsights, aiSummary?: string }`
-- [ ] **H4d. Gjenbruk fra @evo/core** — importer `Recommendation`, `ProjectType`, `AnalysisResult` i types.d.ts
+- [x] **H4d. Gjenbruk fra @evo/core** — importer `Recommendation`, `ProjectType`, `AnalysisResult` i types.d.ts
 
-**Estimat:** 0.5 dag
+**Gjort:** `server/types.d.ts` utvidet med alle domenetype-definisjoner. `FullAnalysisResult`, `ScanState`, `ScanRepoResult`, `IssueCreateParams`, `IssueCreateResult`, `DeepInsights`, `IssueTemplate`, `FileTreeMetrics`, `ScanOptions` — alle eksportert og brukt gjennomgående i server/.
 
 ---
 
-#### H5 — Konverter `server/` til TypeScript (fil for fil)
+#### H5 — Konverter `server/` til TypeScript (fil for fil) ✅ Ferdig
 
 Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 
-- [ ] **H5a. `server/github.ts`** — `getOctokit()`, `extractToken()`, `assignCopilotToIssue()` med eksplisitte retur-typer
-- [ ] **H5b. `server/middleware.ts`** — `requireAuth`, `errorHandler`, `notFoundHandler` med `RequestHandler`/`ErrorRequestHandler`-typer
-- [ ] **H5c. `server/validation.ts`** — Zod-skjemaer med infererte typer (`z.infer<typeof schema>`) + `validate()`-middleware
-- [ ] **H5d. `server/project-detector.ts`** — returner `ProjectType` fra `@evo/core`
-- [ ] **H5e. `server/file-analyzer.ts`** — typer for `fetchRepoTree()`, `analyzeFiles()`
-- [ ] **H5f. `server/recommendation-engine.ts`** — returner `Recommendation[]`
-- [ ] **H5g. `server/analyzer.ts`** — fasade-re-eksport (trivielt etter H5d–f)
-- [ ] **H5h. `server/copilot-client.ts`** — returner `AIAnalysisResult`, typer for prompt-parametere
-- [ ] **H5i. `server/templates/*.ts`** — 5 filer; `buildGuardrailsIssueBody()` etc. med `(rec: Recommendation) => string`-typer
-- [ ] **H5j. `server/services/issue-service.ts`** — `createTemplateIssue()` med `IssueCreateParams`/`IssueCreateResult`
-- [ ] **H5k. `server/services/analysis-service.ts`** — `analyzeRepoFull()` med `FullAnalysisResult`
-- [ ] **H5l. `server/services/scan-service.ts`** — `ScanState`-type gjennom hele tjenesten
-- [ ] **H5m. `server/routes/issues.ts`** — Express `Router` med typede `req.body` (via Zod-inference)
-- [ ] **H5n. `server/routes/repos.ts`** — typede params og query
-- [ ] **H5o. `server/routes/scan.ts`** — tynn HTTP-lag med typede responser
-- [ ] **H5p. `server/index.ts`** — oppstartsmodul, `Application`-type
+- [x] **H5a. `server/github.ts`** — `getOctokit()`, `extractToken()`, `assignCopilotToIssue()` med eksplisitte retur-typer
+- [x] **H5b. `server/middleware.ts`** — `requireAuth`, `errorHandler`, `notFoundHandler` med `RequestHandler`/`ErrorRequestHandler`-typer
+- [x] **H5c. `server/validation.ts`** — Zod-skjemaer med infererte typer (`z.infer<typeof schema>`) + `validate()`-middleware
+- [x] **H5d. `server/project-detector.ts`** — returner `ProjectType` fra `@evo/core`
+- [x] **H5e. `server/file-analyzer.ts`** — typer for `fetchRepoTree()`, `analyzeFiles()`
+- [x] **H5f. `server/recommendation-engine.ts`** — returner `Recommendation[]`
+- [x] **H5g. `server/analyzer.ts`** — fasade-re-eksport (trivielt etter H5d–f)
+- [x] **H5h. `server/copilot-client.ts`** — returner `AIAnalysisResult`, typer for prompt-parametere
+- [x] **H5i. `server/templates/*.ts`** — 5 filer; `buildGuardrailsIssueBody()` etc. med `(rec: Recommendation) => string`-typer
+- [x] **H5j. `server/services/issue-service.ts`** — `createTemplateIssue()` med `IssueCreateParams`/`IssueCreateResult`
+- [x] **H5k. `server/services/analysis-service.ts`** — `analyzeRepoFull()` med `FullAnalysisResult`
+- [x] **H5l. `server/services/scan-service.ts`** — `ScanState`-type gjennom hele tjenesten
+- [x] **H5m. `server/routes/issues.ts`** — Express `Router` med typede `req.body` (via Zod-inference), `export = router` for CJS-kompatibilitet
+- [x] **H5n. `server/routes/repos.ts`** — typede params og query
+- [x] **H5o. `server/routes/scan.ts`** — tynn HTTP-lag med typede responser
+- [x] **H5p. `server/index.ts`** — oppstartsmodul, `Application`-type
 
-**Estimat:** 2–3 dager
+**Gjort:** Alle 20 server/-filer konvertert til TypeScript. Gamle `.js`-filer slettet. Route-filer bruker `export = router` for CJS-kompatibilitet med tester. `server/index.ts` bruker `import X = require(...)` for routes.
 
 ---
 
-#### H6 — Konverter `packages/cli/` til TypeScript
+#### H6 — Konverter `packages/cli/` til TypeScript ✅ Ferdig
 
-- [ ] **H6a. `packages/cli/src/analyzer.ts`** — importer `Recommendation`, `ProjectType` fra `@evo/core`
-- [ ] **H6b. `packages/cli/src/copilot.ts`** — `analyzeWithAI()` med `AIAnalysisResult`-returtype
-- [ ] **H6c. `packages/cli/src/issues.ts`** — `createIssue()` med `IssueCreateParams`-type
-- [ ] **H6d. `packages/cli/src/output.ts`** — `printResults()` med typede parametre
-- [ ] **H6e. `packages/cli/src/scanner.ts`** — `Scanner`-klassen med full typesetting
-- [ ] **H6f. `packages/cli/bin/evo-scan.ts`** — Commander.js-program (bundled types siden v8)
-- [ ] **H6g.** Oppdater `packages/cli/package.json` `main`/`bin` til `dist/`-output eller bruk `tsx` for direkte kjøring
+- [x] **H6a. `packages/cli/src/analyzer.ts`** — re-eksporterer `analyzeRepository`, `detectProjectType` (alias for `detectProjectTypeFromMetadata`), `PROJECT_TYPE_LABELS` fra `@evo/core`
+- [x] **H6b. `packages/cli/src/copilot.ts`** — `analyzeWithAI()` med `AIAnalysisResult`-returtype
+- [x] **H6c. `packages/cli/src/issues.ts`** — `createIssue()` med `IssueCreateParams`-type
+- [x] **H6d. `packages/cli/src/output.ts`** — alle output-funksjoner med typede parametre
+- [x] **H6e. `packages/cli/src/scanner.ts`** — `runScan()` med full typesetting
+- [x] **H6f. `packages/cli/bin/evo-scan.ts`** — Commander.js-program (bundled types siden v8)
+- [x] **H6g.** `packages/cli/package.json` oppdatert: `main: src/scanner.ts`, `bin: ./bin/evo-scan.ts`, `start: tsx bin/evo-scan.ts`
 
-**Estimat:** 1 dag
+**Gjort:** Alle 6 CLI-filer konvertert til TypeScript. Gamle `.js`-filer slettet. `packages/core` eksporterer nå alle typer som CLI trenger.
 
 ---
 
@@ -574,10 +575,10 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 
 #### H8 — Bygg-oppdateringer
 
-- [ ] **H8a. Backend dev:** Installer `tsx` (`npm i -D tsx`) — erstatter `node server/index.js` med `tsx server/index.ts`; raskere enn `ts-node`
+- [x] **H8a. Backend dev:** Installer `tsx` (`npm i -D tsx`) — erstatter `node server/index.js` med `tsx server/index.ts`; raskere enn `ts-node`
 - [ ] **H8b. Backend prod:** `tsc -p tsconfig.json` → kompilerer til `dist/server/`, `npm start` kjører `node dist/server/index.js`
-- [ ] **H8c. CLI:** Bruk `tsx` for utvikling, `tsc` for produksjonsbygg; oppdater `bin/evo-scan.js` shebang til å bruke `tsx` eller peik på kompilert `.js`
-- [ ] **H8d.** Oppdater `package.json` scripts: `"dev": "tsx server/index.ts"`, `"build:server": "tsc -p tsconfig.json"`
+- [x] **H8c. CLI:** `packages/cli/bin/evo-scan.ts` kjøres direkte med `tsx` via `packages/cli/package.json` `start`-script
+- [x] **H8d.** Oppdater `package.json` scripts: `"dev": "tsx server/index.ts"` ✅ (gjort), `"build:server"` gjenstår
 - [ ] **H8e.** Legg til `tsc --noEmit` i GitHub Actions CI-workflow (`.github/workflows/`) for typesjekk ved PR
 
 **Estimat:** 0.5 dag

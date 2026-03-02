@@ -14,12 +14,14 @@
     // "rootDir": "server"
   },
   "include": [
+    "server/**/*.ts",
     "server/**/*.js",
-    "server/**/*.d.ts",
     "packages/core/index.ts",
     "vitest.backend.config.js"
   ],
   "exclude": [
+    "server/**/*.test.ts",
+    "server/**/*.spec.ts",
     "server/**/*.test.js",
     "server/**/*.spec.js",
     "packages/**/*.test.js",
