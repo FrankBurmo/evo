@@ -11,7 +11,7 @@ import {
 import ScanControl from './ScanControl';
 
 function Dashboard({ token, onLogout }) {
-  const [repos, setRepos] = useState([]);
+  const [repos, setRepos] = useState(/** @type {any[]} */ ([]));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState('all');
@@ -40,7 +40,7 @@ function Dashboard({ token, onLogout }) {
 
       const data = await response.json();
       setRepos(data.repositories || []);
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setError('Failed to load repositories: ' + err.message);
     } finally {
       setIsLoading(false);
@@ -93,7 +93,7 @@ function Dashboard({ token, onLogout }) {
           cmp = (a.repo.stars || 0) - (b.repo.stars || 0);
           break;
         case 'updated':
-          cmp = new Date(a.repo.updatedAt) - new Date(b.repo.updatedAt);
+          cmp = new Date(a.repo.updatedAt).getTime() - new Date(b.repo.updatedAt).getTime();
           break;
         case 'priority': {
           const score = (r) => r.recommendations.filter(rec => rec.priority === 'high').length;
@@ -118,7 +118,7 @@ function Dashboard({ token, onLogout }) {
   if (isLoading) {
     return (
       <div className="app">
-        <Header />
+        <Header onLogout={onLogout} />
         <div className="repos-grid" aria-busy="true" aria-label="Laster repositories">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} />
@@ -131,7 +131,7 @@ function Dashboard({ token, onLogout }) {
   if (error) {
     return (
       <div className="app">
-        <Header />
+        <Header onLogout={onLogout} />
         <div className="error" role="alert" style={{ maxWidth: '600px', margin: '0 auto' }}>
           <h3 style={{ marginBottom: '8px', fontSize: '1rem' }}>Feil oppstod</h3>
           <p style={{ fontSize: '0.88rem' }}>{error}</p>

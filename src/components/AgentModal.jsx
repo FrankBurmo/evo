@@ -5,18 +5,18 @@ function AgentModal({ recommendation, repo, token, onClose }) {
   const [status, setStatus] = useState('idle'); // idle | loading | success | error
   const [issueUrl, setIssueUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  const modalRef = useRef(null);
-  const previousFocusRef = useRef(null);
+  const modalRef = /** @type {React.MutableRefObject<HTMLDivElement|null>} */ (useRef(null));
+  const previousFocusRef = /** @type {React.MutableRefObject<HTMLElement|null>} */ (useRef(null));
 
   // Fokus-felle, Escape-lukking og fokus-retur
   useEffect(() => {
-    previousFocusRef.current = document.activeElement;
+    previousFocusRef.current = /** @type {HTMLElement|null} */ (document.activeElement);
 
     const modal = modalRef.current;
     if (!modal) return;
 
     const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-    const firstFocusable = modal.querySelector(focusableSelector);
+    const firstFocusable = /** @type {HTMLElement|null} */ (modal.querySelector(focusableSelector));
     firstFocusable?.focus();
 
     const handleKeyDown = (e) => {
@@ -25,7 +25,7 @@ function AgentModal({ recommendation, repo, token, onClose }) {
         return;
       }
       if (e.key === 'Tab') {
-        const focusable = modal.querySelectorAll(focusableSelector);
+        const focusable = /** @type {NodeListOf<HTMLElement>} */ (modal.querySelectorAll(focusableSelector));
         if (focusable.length === 0) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
@@ -77,7 +77,7 @@ function AgentModal({ recommendation, repo, token, onClose }) {
       setIssueUrl(data.issueUrl);
       setStatus('success');
       if (data.note) setErrorMessage(data.note);
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setErrorMessage(err.message);
       setStatus('error');
     }

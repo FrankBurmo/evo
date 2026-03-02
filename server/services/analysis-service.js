@@ -53,7 +53,7 @@ async function analyzeRepoFull({ octokit, repo, token, options = {} }) {
     analysis.aiProjectType = aiResult.projectType;
     analysis.ruleBasedCount = analysis.recommendations.length - newAIRecs.length;
     analysis.aiCount = newAIRecs.length;
-  } catch (aiError) {
+  } catch (/** @type {any} */ aiError) {
     console.warn('KI-analyse feilet, bruker kun regelbasert analyse:', aiError.message);
     analysis.aiAnalyzed = false;
     analysis.aiError = aiError.message;

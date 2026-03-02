@@ -289,6 +289,7 @@ class RateLimiter {
     }
   }
 
+  /** @returns {Promise<void>} */
   async acquire() {
     return new Promise((resolve) => {
       const tryAcquire = () => {

@@ -37,7 +37,7 @@ function App() {
       } else {
         setError('Failed to authenticate');
       }
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setError('Failed to connect to server: ' + err.message);
     } finally {
       setIsLoading(false);

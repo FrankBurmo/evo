@@ -45,7 +45,7 @@ router.get('/repos', async (req, res, next) => {
 // ── GET /api/repo/:owner/:name ──────────────────────────────────────────────
 router.get('/repo/:owner/:name', validate({ params: repoParamsSchema }), async (req, res, next) => {
   try {
-    const { owner, name } = req.params;
+    const { owner, name } = /** @type {{ owner: string, name: string }} */ (req.params);
     const octokit = getOctokit(req.token);
     const { data: repo } = await octokit.repos.get({ owner, repo: name });
 
@@ -59,7 +59,7 @@ router.get('/repo/:owner/:name', validate({ params: repoParamsSchema }), async (
 // ── GET /api/repo/:owner/:name/deep ─────────────────────────────────────────
 router.get('/repo/:owner/:name/deep', validate({ params: repoParamsSchema }), async (req, res, next) => {
   try {
-    const { owner, name } = req.params;
+    const { owner, name } = /** @type {{ owner: string, name: string }} */ (req.params);
     const useAI = req.query.ai !== 'false';
 
     const octokit = getOctokit(req.token);
@@ -77,7 +77,7 @@ router.post(
   validate({ params: repoParamsSchema, body: aiAnalyzeSchema }),
   async (req, res, next) => {
     try {
-      const { owner, name } = req.params;
+      const { owner, name } = /** @type {{ owner: string, name: string }} */ (req.params);
       const { model } = req.body || {};
       const octokit = getOctokit(req.token);
       const { data: repo } = await octokit.repos.get({ owner, repo: name });

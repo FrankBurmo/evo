@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:backend": "node --experimental-vm-modules node_modules/.bin/vitest run --config vitest.backend.config.js",
-    "test:all": "vitest run && node --experimental-vm-modules node_modules/.bin/vitest run --config vitest.backend.config.js"
+    "test:all": "vitest run && node --experimental-vm-modules node_modules/.bin/vitest run --config vitest.backend.config.js",
+    "typecheck": "tsc --project jsconfig.json --noEmit"
   },
   "repository": {
     "type": "git",
@@ -41,9 +42,16 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/supertest": "^7.2.0",
     "@vitejs/plugin-react": "^5.1.4",
     "jsdom": "^28.1.0",
     "supertest": "^7.2.2",
+    "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.0.18"
   }

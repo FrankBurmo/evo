@@ -6,7 +6,7 @@ import React from 'react';
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = /** @type {{ hasError: boolean, error: Error|null }} */ ({ hasError: false, error: null });
   }
 
   static getDerivedStateFromError(error) {

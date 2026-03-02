@@ -23,7 +23,7 @@ async function issueAlreadyExists(octokit, owner, repo, title) {
 
 /**
  * Opprett ett GitHub Issue for en anbefaling.
- * @returns {string|null} URL til opprettet issue, eller null ved feil/tørrkjøring
+ * @returns {Promise<string|null>} URL til opprettet issue, eller null ved feil/tørrkjøring
  */
 async function createIssue({ token, owner, repo, recommendation, dryRun = false }) {
   const octokit = new Octokit({ auth: token });
@@ -56,7 +56,7 @@ async function createIssue({ token, owner, repo, recommendation, dryRun = false 
     });
 
     return data.html_url;
-  } catch (err) {
+  } catch (/** @type {any} */ err) {
     // Prøv uten labels hvis label-opprettelse feiler
     if (err.status === 422) {
       const { data } = await octokit.issues.create({

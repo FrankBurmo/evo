@@ -15,7 +15,7 @@ import ScanResults from './ScanResults';
 function ScanControl({ token }) {
   const [scanStatus, setScanStatus] = useState('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0, currentRepo: null });
-  const [results, setResults] = useState(null);
+  const [results, setResults] = useState(/** @type {any} */ (null));
   const [error, setError] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -27,14 +27,14 @@ function ScanControl({ token }) {
 
   // Batch issue creation
   const [batchStatus, setBatchStatus] = useState('idle');
-  const [batchResult, setBatchResult] = useState(null);
+  const [batchResult, setBatchResult] = useState(/** @type {any} */ (null));
 
   // Selection state: { "owner/repo": Set<recIndex> }
   const [selectedRecs, setSelectedRecs] = useState({});
   // Track individual issue creation: { "owner/repo::recIndex": 'loading' | 'created' | 'error' }
   const [individualStatus, setIndividualStatus] = useState({});
 
-  const pollRef = useRef(null);
+  const pollRef = /** @type {React.MutableRefObject<any>} */ (useRef(null));
 
   // ── Fetch-helpers ──────────────────────────────────────────────────────────
 
@@ -60,7 +60,7 @@ function ScanControl({ token }) {
         });
         setSelectedRecs(sel);
       }
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setError('Kunne ikke hente resultater: ' + err.message);
     }
   }, [token]);
@@ -121,7 +121,7 @@ function ScanControl({ token }) {
         setScanStatus('error');
         setError(data.error || 'Feil ved start av skanning');
       }
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setScanStatus('error');
       setError('Nettverksfeil: ' + err.message);
     }
@@ -164,7 +164,7 @@ function ScanControl({ token }) {
       setBatchResult(data);
       setBatchStatus('done');
       fetchResults();
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setBatchResult({ error: err.message });
       setBatchStatus('done');
     }

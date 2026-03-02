@@ -55,7 +55,7 @@ program
         config = loadConfig(autoConfigPath);
         if (!options.json) printInfo('Konfigurasjon lastet fra: scan-config.json');
       }
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       if (configPath) {
         // Eksplisitt --config: feil er kritisk
         printError(`Kunne ikke laste konfigurasjon: ${err.message}`);
@@ -109,7 +109,7 @@ program
         filters: filtersCfg,
         categories: categoriesCfg,
       });
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       printError(err.message);
       process.exit(1);
     }

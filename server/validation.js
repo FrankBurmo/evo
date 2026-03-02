@@ -77,8 +77,8 @@ const actionIdParamsSchema = z.object({
  * Opprett Express-middleware som validerer request body/params med et Zod-skjema.
  *
  * @param {object} schemas
- * @param {z.ZodSchema} [schemas.body] — Skjema for req.body
- * @param {z.ZodSchema} [schemas.params] — Skjema for req.params
+ * @param {z.ZodSchema} [schemas.body] - Skjema for req.body
+ * @param {z.ZodSchema} [schemas.params] - Skjema for req.params
  * @returns {import('express').RequestHandler}
  */
 function validate(schemas) {

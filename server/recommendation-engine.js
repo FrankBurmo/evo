@@ -67,8 +67,8 @@ function generateDeepRecommendations({
   recentCommits,
   projectType,
   configFiles = {},
-  fileTreeMetrics = null,
-  workflowFiles = [],
+  fileTreeMetrics = /** @type {any} */ (null),
+  workflowFiles = /** @type {any[]} */ ([]),
 }) {
   const recommendations = [];
   const rootSet = new Set(rootFiles.map(f => f.toLowerCase()));

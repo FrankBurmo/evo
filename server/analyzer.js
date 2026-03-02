@@ -93,7 +93,7 @@ async function deepAnalyzeRepo(octokit, repo) {
       : Promise.resolve({}),
     repoTree.length > 0
       ? fetchWorkflowFiles(octokit, owner, repoName, repoTree)
-      : Promise.resolve([]),
+      : Promise.resolve(/** @type {any[]} */ ([])),
   ]);
 
   // ── 4. Utled tilstedeværelse av community-filer fra treet ─────

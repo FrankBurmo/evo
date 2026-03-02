@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
  *
  * @param {string} key - localStorage-nøkkel
  * @param {*} initialValue - standardverdi hvis nøkkelen ikke finnes
- * @returns {[value, setValue, removeValue]}
+ * @returns {[any, Function, Function]}
  */
 export default function useLocalStorage(key, initialValue) {
   const [storedValue, setStoredValue] = useState(() => {

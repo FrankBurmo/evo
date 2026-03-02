@@ -66,9 +66,9 @@ async function runScan({
       ? { type: 'owner', sort: 'updated', per_page: 100 }
       : { sort: 'updated', affiliation: 'owner', per_page: 100 };
 
-    const allRepos = owner
-      ? await octokit.paginate(octokit.repos.listForUser, { username: owner, ...fetchOpts })
-      : await octokit.paginate(octokit.repos.listForAuthenticatedUser, fetchOpts);
+    const allRepos = /** @type {any[]} */ (owner
+      ? await octokit.paginate(octokit.repos.listForUser, /** @type {any} */ ({ username: owner, ...fetchOpts }))
+      : await octokit.paginate(octokit.repos.listForAuthenticatedUser, /** @type {any} */ (fetchOpts)));
 
     repos = allRepos
       .filter(r => !r.archived)
@@ -135,7 +135,7 @@ async function runScan({
         // AI-feil er ikke kritisk – fall tilbake til regelbasert
         if (!jsonOutput) {
           process.stdout.write('\n');
-          printError(`AI-analyse feilet for ${repo.name}: ${err.message} – bruker regelbasert.`);
+          printError(`AI-analyse feilet for ${repo.name}: ${err instanceof Error ? err.message : String(err)} – bruker regelbasert.`);
         }
       }
     }
@@ -170,7 +170,7 @@ async function runScan({
         } catch (err) {
           if (!jsonOutput) {
             process.stdout.write('\n');
-            printError(`Kunne ikke opprette issue for "${rec.title}": ${err.message}`);
+            printError(`Kunne ikke opprette issue for "${rec.title}": ${err instanceof Error ? err.message : String(err)}`);
           }
         }
       }

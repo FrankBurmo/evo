@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    // ─── Kompilerings-mål ──────────────────────────────────────────────────
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+
+    // ─── Modulformat ───────────────────────────────────────────────────────
+    // ESNext + bundler: støtter både CJS require() og ESM import i samme
+    // prosjekt. Riktig for Vite-frontend + Node.js-backend side om side.
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    // ─── JavaScript-typekontroll (kjernepunktet for Trinn 1) ──────────────
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+
+    // ─── Strenghetsnivå ────────────────────────────────────────────────────
+    // strict: true gir blant annet strictNullChecks, strictFunctionTypes,
+    // strictBindCallApply og useUnknownInCatchVariables.
+    // noImplicitAny overstyres til false: i en ren JS-kodebase uten TypeScript-
+    // annotasjoner på alle funksjonsparametere ville dette gi svært mye støy
+    // uten proporsjonal verdi.
+    "strict": true,
+    "noImplicitAny": false,
+
+    // ─── JSX (React) ───────────────────────────────────────────────────────
+    "jsx": "react-jsx",
+
+    // ─── Diverse ───────────────────────────────────────────────────────────
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.js",
+    "src/**/*.jsx",
+    "server/**/*.js",
+    "server/**/*.d.ts",
+    "packages/**/*.js",
+    "vite.config.js",
+    "vitest.backend.config.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "public",
+    "**/*.test.js",
+    "**/*.test.jsx",
+    "**/*.spec.js",
+    "**/*.spec.jsx",
+    "src/test/**"
+  ]
+}

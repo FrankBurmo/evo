@@ -29,7 +29,7 @@ function requireAuth(req, res, next) {
       statusCode: 401,
     });
   }
-  req.token = token;
+  req.token = /** @type {string} */ (token);
   next();
 }
 

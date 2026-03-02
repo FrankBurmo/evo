@@ -20,7 +20,7 @@ function formatBytes(bytes) {
 function formatDate(dateString) {
   const date = new Date(dateString);
   const now = new Date();
-  const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) return 'I dag';
   if (diffDays === 1) return 'I går';
@@ -29,7 +29,7 @@ function formatDate(dateString) {
   return `${Math.floor(diffDays / 365)} år siden`;
 }
 
-const RepositoryCard = memo(function RepositoryCard({ repoData, token }) {
+const RepositoryCard = memo(/** @param {{ repoData: any, token: any }} props */ function RepositoryCard({ repoData, token }) {
   const { repo, insights, deepInsights, recommendations } = repoData;
   const [selectedRec, setSelectedRec] = useState(null);
   const [showCodeInsights, setShowCodeInsights] = useState(false);

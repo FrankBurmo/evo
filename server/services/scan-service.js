@@ -15,6 +15,7 @@ const { assignCopilotToIssue } = require('../github');
 
 // ── In-memory scan state (single tenant — one scan at a time) ───────────────
 
+/** @type {{ status: string, startedAt: string|null, completedAt: string|null, progress: {current: number, total: number, currentRepo: string|null}, results: any[], error: string|null, options: any }} */
 const scanState = {
   status: 'idle',       // idle | running | completed | error
   startedAt: null,
@@ -133,7 +134,7 @@ async function startScan({ octokit, token, options }) {
           token,
           options: { useAI, model },
         });
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         analysis = analyzeRepository(repo);
         analysis.deepInsights = null;
         analysis.aiAnalyzed = false;
@@ -149,7 +150,7 @@ async function startScan({ octokit, token, options }) {
         repo: analysis.repo,
         deepInsights: analysis.deepInsights || null,
         recommendations: filteredRecs,
-        issuesCreated: [],
+        issuesCreated: /** @type {any[]} */ ([]),
       };
 
       // 3. Create issues if requested
@@ -190,7 +191,7 @@ async function startScan({ octokit, token, options }) {
                 owner, repo: repoName, title: issueTitle, body, labels,
               });
               issue = data;
-            } catch (labelErr) {
+            } catch (/** @type {any} */ labelErr) {
               if (labelErr.status === 422) {
                 const { data } = await octokit.issues.create({
                   owner, repo: repoName, title: issueTitle, body, labels: ['evo-scan'],
@@ -216,7 +217,7 @@ async function startScan({ octokit, token, options }) {
               issueNumber: issue.number,
               copilotAssigned,
             });
-          } catch (err) {
+          } catch (/** @type {any} */ err) {
             result.issuesCreated.push({ title: rec.title, status: 'error', error: err.message });
           }
         }
@@ -229,7 +230,7 @@ async function startScan({ octokit, token, options }) {
     scanState.completedAt = new Date().toISOString();
     scanState.progress.currentRepo = null;
     console.log(`✓ Proaktiv skanning fullført: ${scanState.results.length} repos analysert.`);
-  } catch (err) {
+  } catch (/** @type {any} */ err) {
     scanState.status = 'error';
     scanState.error = err.message;
     scanState.completedAt = new Date().toISOString();
@@ -313,7 +314,7 @@ async function createIssuesFromResults({ octokit, assignCopilot, selected }) {
             owner, repo: repoName, title: issueTitle, body, labels,
           });
           issue = data;
-        } catch (labelErr) {
+        } catch (/** @type {any} */ labelErr) {
           if (labelErr.status === 422) {
             const { data } = await octokit.issues.create({
               owner, repo: repoName, title: issueTitle, body, labels: ['evo-scan'],
@@ -343,7 +344,7 @@ async function createIssuesFromResults({ octokit, assignCopilot, selected }) {
           issueNumber: issue.number,
           copilotAssigned,
         });
-      } catch (err) {
+      } catch (/** @type {any} */ err) {
         errors.push({ repo: result.repo.fullName, title: rec.title, error: err.message });
         result.issuesCreated.push({ title: rec.title, status: 'error', error: err.message });
       }

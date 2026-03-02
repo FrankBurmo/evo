@@ -95,7 +95,7 @@ function ConfigurablePanel({
 
       setTriggerState(prev => ({ ...prev, [key]: 'success' }));
       setTriggerResults(prev => ({ ...prev, [key]: data }));
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       setTriggerState(prev => ({ ...prev, [key]: 'error' }));
       setTriggerResults(prev => ({ ...prev, [key]: { error: err.message } }));
     }

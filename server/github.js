@@ -5,7 +5,7 @@ const { Octokit } = require('@octokit/rest');
 
 /**
  * Create an authenticated Octokit instance.
- * @param {string} [token] – GitHub PAT (falls back to GITHUB_TOKEN env var)
+ * @param {string} [token] - GitHub PAT (falls back to GITHUB_TOKEN env var)
  * @returns {Octokit}
  */
 function getOctokit(token) {
@@ -84,7 +84,7 @@ async function assignCopilotToIssue(octokit, { owner, repoName, issueNumber }) {
     );
 
     return { copilotAssigned: true, botLogin: copilotBot.login };
-  } catch (err) {
+  } catch (/** @type {any} */ err) {
     console.warn('Copilot assignment failed:', err.message);
     return { copilotAssigned: false };
   }

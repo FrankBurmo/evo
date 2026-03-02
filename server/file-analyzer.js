@@ -134,7 +134,7 @@ async function fetchRepoTree(octokit, owner, repoName, defaultBranch) {
     }
     return (data.tree || []).map(item => ({
       path: item.path,
-      type: item.type,   // 'blob' = fil, 'tree' = mappe
+      type: /** @type {'blob'|'tree'} */ (item.type),   // 'blob' = fil, 'tree' = mappe
       size: item.size || 0,
     }));
   } catch {
@@ -249,7 +249,7 @@ async function fetchConfigFiles(octokit, owner, repoName, tree) {
   // Begrens til maks 8 konfigurasjonsfiler for å spare API-kall
   const limited = configsToFetch.slice(0, 8);
 
-  const results = {};
+  const results = /** @type {Record<string, string>} */ ({});
   const fetches = limited.map(async (configPath) => {
     const content = await fetchFileContent(octokit, owner, repoName, configPath);
     if (content) {

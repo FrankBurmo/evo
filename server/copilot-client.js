@@ -110,12 +110,12 @@ const PROJECT_TYPE_PROMPTS = {
  * Analyser ett repo med GitHub Copilot Models API.
  *
  * @param {object} params
- * @param {string} params.token — GitHub PAT med models:read scope
- * @param {string} [params.model] — AI-modell (default: openai/gpt-4.1)
- * @param {object} params.repo — Repo-objekt (fra analyzeRepository/deepAnalyzeRepo)
- * @param {object} [params.deepInsights] — Dyp analyse-data (fra deepAnalyzeRepo)
- * @param {string[]} [params.existingRecs] — Titler på eksisterende regelbaserte anbefalinger
- * @param {boolean} [params.skipRateLimit] — Hopp over rate limiting (for testing)
+ * @param {string} params.token - GitHub PAT med models:read scope
+ * @param {string} [params.model] - AI-modell (default: openai/gpt-4.1)
+ * @param {object} params.repo - Repo-objekt (fra analyzeRepository/deepAnalyzeRepo)
+ * @param {object} [params.deepInsights] - Dyp analyse-data (fra deepAnalyzeRepo)
+ * @param {string[]} [params.existingRecs] - Titler på eksisterende regelbaserte anbefalinger
+ * @param {boolean} [params.skipRateLimit] - Hopp over rate limiting (for testing)
  * @returns {Promise<{summary: string, recommendations: Array, projectType: string}>}
  */
 async function analyzeWithAI({
@@ -147,7 +147,7 @@ async function analyzeWithAI({
     try {
       const result = await callCopilotAPI({ token, model, systemPrompt, userPrompt });
       return { ...result, projectType };
-    } catch (err) {
+    } catch (/** @type {any} */ err) {
       lastError = err;
 
       // Retry kun ved 429 (rate limit) eller 5xx (serverfeil)
@@ -364,10 +364,10 @@ async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
       }),
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch (/** @type {any} */ err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      const error = new Error(`Copilot API timeout etter ${FETCH_TIMEOUT_MS}ms`);
+      const error = /** @type {Error & {statusCode: number}} */ (new Error(`Copilot API timeout etter ${FETCH_TIMEOUT_MS}ms`));
       error.statusCode = 504;
       throw error;
     }
@@ -378,7 +378,7 @@ async function callCopilotAPI({ token, model, systemPrompt, userPrompt }) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    const error = new Error(`Copilot API feil (${response.status}): ${text.slice(0, 300)}`);
+  const error = /** @type {Error & {statusCode: number}} */ (new Error(`Copilot API feil (${response.status}): ${text.slice(0, 300)}`));
     error.statusCode = response.status;
     throw error;
   }
@@ -468,8 +468,8 @@ function sleep(ms) {
  * Returnerer et objekt med analyzeWithAI-metode og tilgang til rate limiter.
  *
  * @param {object} [options]
- * @param {string} [options.model] — Standard modell
- * @param {number} [options.maxPerMinute] — Maks API-kall per minutt
+ * @param {string} [options.model] - Standard modell
+ * @param {number} [options.maxPerMinute] - Maks API-kall per minutt
  * @returns {{ analyzeWithAI: Function, rateLimiter: RateLimiter }}
  */
 function createCopilotClient({ model, maxPerMinute } = {}) {

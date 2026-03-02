@@ -33,7 +33,7 @@ async function createTemplateIssue({ token, owner, repoName, template, logPrefix
       labels,
     });
     issue = data;
-  } catch (error) {
+  } catch (/** @type {any} */ error) {
     console.error(`Error creating ${logPrefix} issue:`, error);
     throw { status: 500, error: 'Failed to create issue', message: error.message };
   }

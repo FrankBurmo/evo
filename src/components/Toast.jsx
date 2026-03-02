@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 
-const ToastContext = createContext(null);
+const ToastContext = createContext(/** @type {{ addToast: (message: string, type?: string) => void }|null} */ (null));
 
 /**
  * useToast — hook for å vise toast-notifikasjoner.
@@ -17,7 +17,7 @@ export function useToast() {
  * Rendre denne rundt appen for å aktivere toast-funksjonalitet.
  */
 export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
+  const [toasts, setToasts] = useState(/** @type {Array<{id: number, message: string, type: string}>} */ ([]));
   const idCounter = useRef(0);
 
   const addToast = useCallback((message, type = 'info') => {

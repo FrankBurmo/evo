@@ -19,6 +19,7 @@ const port = process.env.PORT || 3001;
 app.set('trust proxy', 1);
 
 // ── A1: Helmet — sikre HTTP-headers (CSP, X-Frame-Options, etc.) ─────────────
+// @ts-ignore — helmet/express-rate-limit CJS exports typet som namespace med bundler-resolving
 app.use(helmet());
 
 // ── A2: CORS — begrens til kjente origins ────────────────────────────────────
@@ -42,6 +43,7 @@ app.use(cors({
 app.use(express.json());
 
 // Rate limiting
+// @ts-ignore
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
