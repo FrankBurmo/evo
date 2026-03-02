@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './components/Toast';
+import RepoDetailPage from './pages/RepoDetailPage';
 
 function App(): React.JSX.Element {
   const [token, setToken] = useState('');
@@ -57,7 +59,19 @@ function App(): React.JSX.Element {
     return (
       <ErrorBoundary>
         <ToastProvider>
-          <Dashboard token={token} onLogout={handleLogout} />
+          <BrowserRouter>
+            <Routes>
+              <Route
+                path="/"
+                element={<Dashboard token={token} onLogout={handleLogout} />}
+              />
+              <Route
+                path="/repo/:owner/:name"
+                element={<RepoDetailPage token={token} onLogout={handleLogout} />}
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
         </ToastProvider>
       </ErrorBoundary>
     );

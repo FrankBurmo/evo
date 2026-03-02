@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { FixedSizeList, type ListChildComponentProps } from 'react-window';
+import { AutoSizer } from 'react-virtualized-auto-sizer';
 import Header from './Header';
 import RepositoryCard from './RepositoryCard';
 import SkeletonCard from './SkeletonCard';
@@ -10,6 +12,11 @@ import {
 } from './panelConfigs';
 import ScanControl from './ScanControl';
 import type { RepoData } from '../types';
+
+/** Terskel for å bruke virtualisert liste i stedet for CSS-grid. */
+const VIRTUALIZE_THRESHOLD = 12;
+/** Fast høyde per repo-kort i virtualisert liste (px). */
+const ITEM_HEIGHT = 520;
 
 interface DashboardProps {
   token: string;
@@ -298,7 +305,34 @@ function Dashboard({ token, onLogout }: DashboardProps): React.JSX.Element {
 
       {filteredRepos.length === 0 ? (
         <div className="no-repos">Ingen repositories funnet med valgt filter.</div>
+      ) : filteredRepos.length > VIRTUALIZE_THRESHOLD ? (
+        /* Virtualisert liste for store samlinger (> 12 repos) */
+        <div className="repos-list-virtual" style={{ height: '80vh' }}>
+          <AutoSizer
+            renderProp={({ width, height }) =>
+              width && height ? (
+                <FixedSizeList
+                  height={height}
+                  width={width}
+                  itemCount={filteredRepos.length}
+                  itemSize={ITEM_HEIGHT}
+                  itemData={filteredRepos}
+                >
+                  {({ index, style, data }: ListChildComponentProps<RepoData[]>) => (
+                    <div style={{ ...style, paddingBottom: 16, boxSizing: 'border-box' }}>
+                      <RepositoryCard
+                        repoData={data[index]}
+                        token={token}
+                      />
+                    </div>
+                  )}
+                </FixedSizeList>
+              ) : null
+            }
+          />
+        </div>
       ) : (
+        /* Normalt CSS-grid for mindre samlinger */
         <div className="repos-grid">
           {filteredRepos.map((repoData) => (
             <RepositoryCard

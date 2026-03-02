@@ -1,6 +1,6 @@
 # Evo – Utviklingsplan 🚀
 
-> **Sist oppdatert:** 8. juli 2025
+> **Sist oppdatert:** 8. juli 2025 · F4 ferdig
 
 ## Visjon
 
@@ -17,11 +17,13 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **Fase 1–5 komplett:** Dyp repoanalyse, KI-analyse (Copilot Models API), automatisk issue-opprettelse, scan-orkestrering i UI, schedulert kjøring via GitHub Actions
 - **Fase A komplett:** Sikkerhetshardening — `helmet()`, CORS-begrensning, global error-handler, zod-validering, `requireAuth`-middleware, timeout, graceful shutdown
 - **Fase C komplett:** Frontend-kvalitet og tilgjengelighet — a11y, performance, søk/sortering, skeleton loading, toast, Error Boundary
-- **Fase D komplett:** Testdekning ~25% → ~70% — 219 tester (21 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
+- **Fase D komplett:** Testdekning ~25% → ~70% — 230 tester (22 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
+- **Fase F4 komplett:** React Router (URL-navigasjon + repo-detaljside), react-window (virtualisert repo-liste), dark/light mode-toggle, responsiv mobilmeny
 - **TypeScript Trinn 1+2 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `tsconfig.base.json`, `tsconfig.json` (backend/CommonJS), `tsconfig.frontend.json` (ESNext/bundler), `packages/core/tsconfig.json`, `packages/cli/tsconfig.json` — `typecheck`-script kjører alle 4 i sekvens, **0 feil**
 - **TypeScript H2+H3 ferdig:** `commander` installert i root (bundled typer), `@ts-ignore` fjernet fra CLI. `packages/core/index.ts` med fullstendige interfaces (`Recommendation`, `ProjectType`, `Priority`, `RepositoryMeta`, `RepositoryAnalysis`, `RateLimiterOptions` m.fl.). Core kompilerer til `dist/index.js` + `dist/index.d.ts`. `prepare`-hook bygger core automatisk ved `npm install`.
 - **TypeScript H4+H5+H6 ferdig:** Alle `server/`-filer (20 stk) og `packages/cli/`-filer (6 stk) konvertert til TypeScript. Gamle `.js`-kilde-filer slettet. `vitest.backend.config.js` oppdatert med `tsx/cjs`-loader og `Object.defineProperty`-patch for test-mocking-kompatibilitet. `server/routes/*.ts` bruker `export = router` for CJS-interop. `packages/cli/src/analyzer.ts` eksporterer `detectProjectType` og `PROJECT_TYPE_LABELS`. Typecheck: **0 feil**. Tester: **219/219 passerer**.
 - **TypeScript H8 ferdig (produksjonsbygg):** `tsconfig.server.build.json` (`rootDir: "."`, `outDir: "dist"`) kompilerer server + core til korrekte relative stier. `npm run build:server` → `dist/server/index.js` + `dist/packages/core/index.js`. `npm start` kjører produksjonsserveren. GitHub Actions-workflow fikset: `vitest.backend.config.ts`-referanse rettet + `npm run typecheck`-steg lagt til i CI-pipeline. **Fase H 100% ferdig.**
+- **230 tester passerer** (49 frontend + 181 backend) etter F4-utvidelse
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -340,8 +342,8 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 | Backend routes | 3 | 32 |
 | Backend kjerne | 8 | 106 |
 | CLI | 4 | 41 |
-| Frontend | 6 | 38 |
-| **Totalt** | **21** | **219** (≈3× økning) |
+| Frontend | 7 | 49 |
+| **Totalt** | **22** | **230** (≈4× økning) |
 
 **Mocking-strategi:** CJS-moduler mockes via `require.cache`-clearing + monkey-patching av module.exports FØR avhengige moduler lastes. Frontend-tester bruker `vi.fn()` og `@testing-library/react`.
 
@@ -390,11 +392,11 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - [ ] Sikkerhetsanalyse: OpenSSF Scorecard-integrasjon
 - [ ] Trendanalyse: lagre skanningsresultater over tid, vis utvikling per repo
 
-#### F4. Frontend — Neste nivå
-- [ ] React Router for URL-basert navigasjon (repo-detaljer, scan-resultater som egne sider)
-- [ ] Virtualisert repo-liste (`react-window`) for skalerbarhet med 100+ repos
-- [ ] Dark/light mode toggle
-- [ ] Responsiv mobilmeny
+#### F4. Frontend — Neste nivå ✅ Ferdig
+- [x] React Router for URL-basert navigasjon (repo-detaljer, scan-resultater som egne sider)
+- [x] Virtualisert repo-liste (`react-window`) for skalerbarhet med 100+ repos
+- [x] Dark/light mode toggle
+- [x] Responsiv mobilmeny
 
 #### F5. Skalerbarhet
 - [ ] Persistent scan-tilstand (SQLite/Redis) i stedet for in-memory
@@ -609,7 +611,7 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 - [x] **H10b.** CLI-tester: `packages/cli/src/*.test.js` (4 filer) → `.test.ts`; `packages/core/core.test.js` → `.test.ts`
 - [x] **H10c.** Frontend-tester: `src/test/*.test.jsx` (6 filer) → `.test.tsx`; `src/test/setup.js` → `setup.ts`
 - [x] **H10d.** `vitest.backend.config.ts` oppdatert (`{ts,mjs}` i includes); `vite.config.ts` oppdatert til `setup.ts` + `{ts,tsx}`-includes
-- [x] **H10e.** 219 tester passerer (38 frontend + 181 backend) etter konvertering
+- **H10e.** 230 tester passerer (49 frontend + 181 backend) etter konvertering og F4-utvidelse
 
 **Gjennomført:** 17. juli 2025
 
@@ -660,7 +662,7 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 | F1 | Strukturert logging | F | 🔵 Nice-to-have | ❌ | 3t |
 | F2 | API-forbedringer (paginering, OpenAPI) | F | 🔵 Nice-to-have | ❌ | 4t |
 | F3 | Avansert analyse (deps, security, trender) | F | 🔵 Nice-to-have | ❌ | Løpende |
-| F4 | Frontend neste nivå (router, virtualisering) | F | 🔵 Nice-to-have | ❌ | Løpende |
+| F4 | Frontend neste nivå (router, virtualisering) | F | 🔵 Nice-to-have | ✅ | — |
 | F5 | Skalerbarhet (persistent state, workers) | F | 🔵 Nice-to-have | ❌ | Løpende |
 | F6 | Integrasjoner (webhooks, notifikasjoner) | F | 🔵 Nice-to-have | ❌ | Løpende |
 | H1 | tsconfig-infrastruktur (base, server, frontend, core, cli) | H | 🟠 Høy | ✅ | 0.5d |
@@ -787,6 +789,17 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 - `src/components/panelConfigs.ts` — strengt typede PanelConfig-objekter
 - `index.html` oppdatert til `src/main.tsx`; `tsconfig.frontend.json` oppdatert
 - Alle 19 gamle `.jsx`/`.js` frontend-filer slettet — 38 frontend-tester passerer
+
+### Fase F4: Frontend — Neste nivå — ✅ Ferdig
+- **React Router DOM** (`react-router-dom`) installert: `BrowserRouter` i `App.tsx`, `Routes`/`Route`/`Link`/`Navigate` for navigasjon
+- **Ny side:** `src/pages/RepoDetailPage.tsx` — dedikert rute `/repo/:owner/:name` med breadcrumb, breadcrumb-lenke tilbake til dashboard, og full repo-kortvisning
+- **Virtualisert repo-liste:** `react-window@1` (`FixedSizeList`) + `react-virtualized-auto-sizer` (`{ AutoSizer }`, `renderProp`-API) — aktiveres automatisk ved over 12 repos (VIRTUALIZE_THRESHOLD); under terskel vises vanlig CSS grid
+- **Dark/light mode:** `src/hooks/useTheme.ts` — bruker `useLocalStorage<Theme>('evo-theme', 'dark')`, setter `data-theme`-attributt på `documentElement`. CSS-variabler for lys modus i `variables.css` (`:root[data-theme="light"]`). Toggle-knapp i `Header.tsx` med ☀️/🌙-ikon og `aria-label`
+- **Responsiv mobilmeny:** hamburger-knapp (`header-menu-toggle`) skjult på desktop, synlig ≤768px. `header-actions--open`-klasse viser handlingsmenyen på mobil. CSS-animasjon for hamburger → X
+- **CSS-oppdateringer:** `variables.css` (lys tema), `base.css` (`--bg-gradient`, transition, breadcrumb/repos-list-virtual), `header.css` (toggle + hamburger), `responsive.css` (mobilmeny-logikk), `repo-card.css` (`.repo-detail-footer`/`.repo-detail-link`)
+- **Nye avhengigheter:** `react-router-dom`, `react-window@1`, `react-virtualized-auto-sizer`, `@types/react-window`
+- **Tester:** 11 nye + oppdaterte tester — `src/test/RepoDetailPage.test.tsx` (6 tester), `Header.test.tsx` (+4), `RepositoryCard.test.tsx` (oppdatert med MemoryRouter + detail-lenke-test), `Dashboard.test.tsx` (MemoryRouter-wrapper) — **230 tester passerer (49 frontend + 181 backend)**
+- **Typecheck:** 0 feil | **Bygg:** `vite build` → 66 moduler, 290KB JS, 40KB CSS ✅
 
 ### Fase H9+H10: Strengere typesjekk og testkonvertering — ✅ Ferdig (17. juli 2025)
 - **H9 (Strengere typesjekk):** `noImplicitAny: true` aktivert; `allowJs`/`checkJs` fjernet; `jsconfig.json` slettet; `vite.config.ts`/`vitest.backend.config.ts` opprettet; `server/templates.js` (855 LOC dead code) slettet; `.js`-mønstre fjernet fra alle tsconfig-includes

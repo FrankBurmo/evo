@@ -443,3 +443,27 @@
 .badge-dep    { background: rgba(255, 181, 71, 0.1); color: var(--warning); border: 1px solid rgba(255, 181, 71, 0.2); }
 .badge-lock   { background: rgba(255, 255, 255, 0.05); color: var(--text-secondary); border: 1px solid var(--border); }
 .badge-none   { background: rgba(255, 77, 106, 0.08); color: var(--danger); border: 1px solid rgba(255, 77, 106, 0.15); font-weight: 400; }
+
+/* ─── Repo detail link ────────────────────────────────────────────────── */
+
+.repo-detail-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.repo-detail-link {
+  font-size: 0.8rem;
+  color: var(--accent);
+  text-decoration: none;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.repo-detail-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+

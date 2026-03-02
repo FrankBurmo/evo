@@ -1,4 +1,5 @@
 import React, { useState, memo } from 'react';
+import { Link } from 'react-router-dom';
 import AgentModal from './AgentModal';
 import type { RepoData, Recommendation } from '../types';
 
@@ -236,6 +237,17 @@ const RepositoryCard = memo(function RepositoryCard({
           onClose={() => setSelectedRec(null)}
         />
       )}
+
+      {/* Lenke til dedikert detaljside */}
+      <div className="repo-detail-footer">
+        <Link
+          to={`/repo/${repo.fullName.split('/')[0]}/${repo.name}`}
+          className="repo-detail-link"
+          aria-label={`Se fullstendig analyse for ${repo.name}`}
+        >
+          Se analysedetaljer →
+        </Link>
+      </div>
     </div>
   );
 });

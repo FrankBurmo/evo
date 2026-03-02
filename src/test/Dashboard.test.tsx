@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import Dashboard from '../components/Dashboard';
 
 // Mock fetch globalt
@@ -62,12 +63,20 @@ describe('Dashboard', () => {
       ok: true,
       json: () => Promise.resolve({ totalRepos: repos.length, repositories: repos }),
     });
-    return render(<Dashboard token="ghp_test" onLogout={onLogout} />);
+    return render(
+      <MemoryRouter>
+        <Dashboard token="ghp_test" onLogout={onLogout} />
+      </MemoryRouter>,
+    );
   }
 
   it('viser skeleton-loading initielt', () => {
     mockFetch.mockReturnValue(new Promise(() => {})); // henger
-    render(<Dashboard token="ghp_test" onLogout={onLogout} />);
+    render(
+      <MemoryRouter>
+        <Dashboard token="ghp_test" onLogout={onLogout} />
+      </MemoryRouter>,
+    );
     expect(screen.getByLabelText('Laster repositories')).toBeInTheDocument();
   });
 
@@ -90,7 +99,11 @@ describe('Dashboard', () => {
 
   it('viser feilmelding ved nettverksfeil', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Nettverksfeil'));
-    render(<Dashboard token="ghp_test" onLogout={onLogout} />);
+    render(
+      <MemoryRouter>
+        <Dashboard token="ghp_test" onLogout={onLogout} />
+      </MemoryRouter>,
+    );
     await waitFor(() => {
       expect(screen.getByText(/Failed to load/)).toBeInTheDocument();
     });

@@ -2,10 +2,39 @@
 
 @media (max-width: 768px) {
   .header {
-    flex-direction: column;
-    gap: 14px;
-    text-align: center;
-    padding: 16px;
+    position: relative;
+    flex-wrap: wrap;
+    gap: 0;
+    padding: 14px 16px;
+    align-items: center;
+  }
+
+  /* Header-brand tar full bredde og header-actions skjules */
+  .header-brand {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Hamburger-knapp synlig på mobil */
+  .header-menu-toggle {
+    display: flex;
+  }
+
+  /* Header-actions er skjult som standard på mobil */
+  .header-actions {
+    display: none;
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    gap: 10px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  /* Vis header-actions når mobilmeny er åpen */
+  .header-actions--open {
+    display: flex;
   }
 
   .repos-grid {
@@ -37,4 +66,21 @@
   .engvelocity-controls {
     margin-left: 0;
   }
+
+  .breadcrumb {
+    font-size: 0.82rem;
+    flex-wrap: wrap;
+  }
 }
+
+@media (min-width: 769px) {
+  /* Sørg for at header-actions alltid vises på desktop */
+  .header-actions {
+    display: flex !important;
+  }
+
+  .header-menu-toggle {
+    display: none !important;
+  }
+}
+
