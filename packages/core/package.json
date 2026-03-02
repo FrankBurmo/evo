@@ -2,7 +2,11 @@
   "name": "@evo/core",
   "version": "0.1.0",
   "description": "Delt analysemotor for Evo – brukes av både server og CLI",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "license": "MIT",
   "private": true
 }

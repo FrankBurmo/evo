@@ -155,7 +155,12 @@ async function runScan({
       if (createIssues || dryRun) {
         if (maxIssuesPerRepo > 0 && issuesCreatedForRepo >= maxIssuesPerRepo) break;
         try {
-          const [rOwner, rName] = repoData.fullName.split('/');
+          const fullName = repoData.fullName;
+          if (!fullName) {
+            console.warn(`Repo mangler full_name, hopper over issue-opprettelse`);
+            break;
+          }
+          const [rOwner, rName] = fullName.split('/');
           const issueUrl = await createIssue({
             token,
             owner: rOwner,

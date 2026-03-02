@@ -3,40 +3,130 @@
 /**
  * @evo/core — Delt kode mellom CLI og server
  *
- * Dette er et bakoverkompatibelt CJS-inngangspunkt som videresender til
- * den TypeScript-kompilerte koden i dist/. Kilden er packages/core/index.ts.
+ * Eksporterer:
+ *   detectProjectTypeFromMetadata(repo) — prosjekttypegjenkjenning fra metadata
+ *   analyzeRepository(repo)             — regelbasert analyse (kun metadata)
+ *   PROJECT_TYPE_LABELS                 — visningsnavn per prosjekttype
+ *   PRIORITY_RANK                       — numerisk prioritetsrangering
+ *   meetsMinPriority(recPriority, min)  — sjekk om prioritet er høy nok
+ *   mergeAIRecommendations(existing, ai) — dedup-merge av AI-recs
+ *   RateLimiter                         — token-bucket rate limiter
  *
- * Brukes primært av:
- *   - packages/core/*.test.js (testene bruker require('./index'))
- *
- * For ny kode: importer direkte fra '../packages/core' (via main: dist/index.js)
- * eller bruk typene fra '@evo/core' der tsconfig er konfigurert.
+ * Typeeksporter:
+ *   ProjectType, Priority, RecommendationType
+ *   Recommendation, AnalysisResult, RateLimiterOptions
+ *   RepositoryMeta (subset av GitHub API repo-objekt)
  */
-module.exports = require('./dist/index');
+
+// ─── Domenetype-definisjoner ─────────────────────────────────────────────────
+
+/** Støttede prosjekttyper. */
+export type ProjectType =
+  | 'web-app'
+  | 'android-app'
+  | 'api'
+  | 'library'
+  | 'docs'
+  | 'other';
+
+/** Prioritetsnivåer for anbefalinger. */
+export type Priority = 'high' | 'medium' | 'low' | 'info' | 'success';
+
+/** Kategorier for anbefalinger. */
+export type RecommendationType =
+  | 'documentation'
+  | 'activity'
+  | 'community'
+  | 'visibility'
+  | 'maintenance'
+  | 'testing'
+  | 'ci'
+  | 'security'
+  | 'performance'
+  | 'architecture'
+  | 'ux'
+  | 'seo'
+  | 'accessibility';
+
+/** Én anbefaling generert av regelbasert eller AI-analyse. */
+export interface Recommendation {
+  type: RecommendationType | string;
+  title: string;
+  description: string;
+  priority: Priority;
+  /** 'ai' for AI-genererte anbefalinger, undefined for regelbaserte */
+  source?: 'ai';
+  marketOpportunity?: string;
+  codeInsights?: string[];
+}
+
+/** Kodekodsinnhold fra dyp analyse. */
+export interface DeepInsights {
+  fileTree?: string[];
+  hasTests?: boolean;
+  hasCI?: boolean;
+  hasDocker?: boolean;
+  hasSecurity?: boolean;
+  languages?: Record<string, number>;
+}
+
+/** Resultat av AI-analyse. */
+export interface AIAnalysisResult {
+  recommendations: Recommendation[];
+  summary?: string;
+  model?: string;
+}
+
+/** Komplett analyseresultat (regelbasert + dyp + AI). */
+export interface AnalysisResult {
+  recommendations: Recommendation[];
+  projectType: ProjectType;
+  score?: number;
+}
+
+/** Minimal repo-metadata (subset av GitHub API). */
+export interface RepositoryMeta {
+  name: string;
+  full_name?: string;
+  description: string | null;
+  html_url?: string;
+  language: string | null;
+  stargazers_count?: number;
+  forks_count?: number;
+  open_issues_count?: number;
+  updated_at?: string | null;
+  private?: boolean;
+  license?: { spdx_id?: string | null; name?: string | null; [key: string]: unknown } | null;
+  topics?: string[];
+  homepage?: string | null;
+}
+
+/** Konfigurasjonsobjekt for RateLimiter. */
+export interface RateLimiterOptions {
+  maxPerMinute?: number;
+  burstSize?: number;
+}
 
 // ─── Prosjekttypegjenkjenning fra metadata ───────────────────────────────────
 
 /**
  * Detekter prosjekttype basert kun på repo-metadata (språk, navn, topics).
  * Brukes i rask analyse uten ekstra API-kall.
- *
- * @param {object} repo — rå repo-objekt fra GitHub API
- * @returns {'web-app'|'android-app'|'api'|'library'|'docs'|'other'}
  */
-function detectProjectTypeFromMetadata(repo) {
+export function detectProjectTypeFromMetadata(repo: RepositoryMeta): ProjectType {
   const lang = (repo.language || '').toLowerCase();
   const name = (repo.name || '').toLowerCase();
   const desc = (repo.description || '').toLowerCase();
-  const topics = (repo.topics || []).map(t => t.toLowerCase());
+  const topics = (repo.topics || []).map((t: string) => t.toLowerCase());
 
   // Android-indikatorer
   if (
     lang === 'kotlin' || lang === 'java' ||
-    topics.some(t => ['android', 'android-app', 'mobile'].includes(t)) ||
+    topics.some((t: string) => ['android', 'android-app', 'mobile'].includes(t)) ||
     name.includes('android')
   ) {
     if (
-      topics.some(t => ['android', 'android-app'].includes(t)) ||
+      topics.some((t: string) => ['android', 'android-app'].includes(t)) ||
       name.includes('android') ||
       desc.includes('android')
     ) {
@@ -46,7 +136,7 @@ function detectProjectTypeFromMetadata(repo) {
 
   // Dokumentasjon
   if (
-    topics.some(t => ['docs', 'documentation', 'docusaurus', 'mkdocs', 'jekyll'].includes(t)) ||
+    topics.some((t: string) => ['docs', 'documentation', 'docusaurus', 'mkdocs', 'jekyll'].includes(t)) ||
     name.includes('docs') || name.includes('documentation') ||
     desc.includes('dokumentasjon') || desc.includes('documentation')
   ) {
@@ -56,7 +146,7 @@ function detectProjectTypeFromMetadata(repo) {
   // Web-app
   const webTopics = ['react', 'vue', 'angular', 'svelte', 'nextjs', 'nuxt', 'web-app', 'frontend', 'webapp', 'website'];
   if (
-    topics.some(t => webTopics.includes(t)) ||
+    topics.some((t: string) => webTopics.includes(t)) ||
     lang === 'html' || lang === 'css' ||
     (lang === 'typescript' && (name.includes('app') || name.includes('web') || name.includes('site') || name.includes('dashboard'))) ||
     (lang === 'javascript' && (name.includes('app') || name.includes('web') || name.includes('site') || name.includes('dashboard')))
@@ -67,7 +157,7 @@ function detectProjectTypeFromMetadata(repo) {
   // API / Backend
   const apiTopics = ['api', 'backend', 'server', 'rest', 'graphql', 'microservice'];
   if (
-    topics.some(t => apiTopics.includes(t)) ||
+    topics.some((t: string) => apiTopics.includes(t)) ||
     name.includes('api') || name.includes('server') || name.includes('backend') ||
     lang === 'go' || lang === 'python' || lang === 'ruby' || lang === 'php'
   ) {
@@ -77,7 +167,7 @@ function detectProjectTypeFromMetadata(repo) {
   // Bibliotek / npm-pakke
   const libTopics = ['library', 'npm', 'package', 'sdk', 'toolkit', 'cli'];
   if (
-    topics.some(t => libTopics.includes(t)) ||
+    topics.some((t: string) => libTopics.includes(t)) ||
     name.includes('lib') || name.includes('sdk') || name.includes('toolkit')
   ) {
     return 'library';
@@ -91,7 +181,7 @@ function detectProjectTypeFromMetadata(repo) {
 
 // ─── Prosjekttypelabeler ─────────────────────────────────────────────────────
 
-const PROJECT_TYPE_LABELS = {
+export const PROJECT_TYPE_LABELS: Record<ProjectType, string> = {
   'web-app': '🌐 Web-app',
   'android-app': '📱 Android',
   'api': '⚙️ API',
@@ -102,23 +192,60 @@ const PROJECT_TYPE_LABELS = {
 
 // ─── Prioritetsrangering ─────────────────────────────────────────────────────
 
-const PRIORITY_RANK = { high: 3, medium: 2, low: 1, info: 0, success: 0 };
+export const PRIORITY_RANK: Record<string, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+  info: 0,
+  success: 0,
+};
 
 /**
  * Sjekk om en anbefalings prioritet er ≥ minstekravet.
  */
-function meetsMinPriority(recPriority, minPriority) {
+export function meetsMinPriority(recPriority: string, minPriority: string): boolean {
   return (PRIORITY_RANK[recPriority] || 0) >= (PRIORITY_RANK[minPriority] || 0);
 }
 
 // ─── Regelbasert analyse ─────────────────────────────────────────────────────
 
+/** Resulterende repo-sammendrag fra analyzeRepository. */
+export interface RepoSummary {
+  name: string;
+  fullName?: string;
+  description: string | null;
+  url?: string;
+  language: string | null;
+  stars: number;
+  forks: number;
+  openIssues: number;
+  updatedAt?: string | null;
+  visibility: 'public' | 'private';
+  license: string | null;
+  projectType: ProjectType;
+  projectTypeLabel: string;
+}
+
+/** Fullstendig returverdi fra analyzeRepository. */
+export interface RepositoryAnalysis {
+  repo: RepoSummary;
+  recommendations: Recommendation[];
+  /** Valgfritt: populeres av deepAnalyzeRepo / analyzeRepoFull (server) */
+  deepInsights?: DeepInsights | null;
+  aiAnalyzed?: boolean;
+  aiSummary?: string;
+  aiError?: string;
+  aiProjectType?: ProjectType | string;
+  ruleBasedCount?: number;
+  aiCount?: number;
+}
+
 /**
  * Rask regelbasert analyse basert kun på repo-metadata (ingen ekstra API-kall).
  * Brukes av /api/repos (server) og CLI bulk-skanning.
  */
-function analyzeRepository(repo) {
-  const recommendations = [];
+export function analyzeRepository(repo: RepositoryMeta): RepositoryAnalysis {
+  const recommendations: Recommendation[] = [];
 
   const daysSinceUpdate = repo.updated_at
     ? Math.floor((Date.now() - new Date(repo.updated_at).getTime()) / (1000 * 60 * 60 * 24))
@@ -248,17 +375,16 @@ function analyzeRepository(repo) {
 /**
  * Dedup-merge av AI-anbefalinger med eksisterende regelbaserte.
  * Fjerner AI-recs som har titler som overlapper med eksisterende (case-insensitive).
- *
- * @param {Array} existingRecs — regelbaserte anbefalinger
- * @param {Array} aiRecs — AI-genererte anbefalinger
- * @returns {Array} — sammensatt array uten duplikater
  */
-function mergeAIRecommendations(existingRecs, aiRecs) {
+export function mergeAIRecommendations(
+  existingRecs: Recommendation[],
+  aiRecs: Recommendation[]
+): Recommendation[] {
   const existingSet = new Set(
-    (existingRecs || []).map(r => (r.title || '').toLowerCase())
+    (existingRecs || []).map((r: Recommendation) => (r.title || '').toLowerCase())
   );
   const newAIRecs = (aiRecs || []).filter(
-    r => !existingSet.has((r.title || '').toLowerCase())
+    (r: Recommendation) => !existingSet.has((r.title || '').toLowerCase())
   );
   return [...(existingRecs || []), ...newAIRecs];
 }
@@ -271,8 +397,15 @@ function mergeAIRecommendations(existingRecs, aiRecs) {
  *
  * Deles mellom server (copilot-client.js) og CLI (copilot.js).
  */
-class RateLimiter {
-  constructor({ maxPerMinute = 10, burstSize = 3 } = {}) {
+export class RateLimiter {
+  private maxPerMinute: number;
+  private burstSize: number;
+  private tokens: number;
+  private maxTokens: number;
+  private lastRefill: number;
+  private refillRate: number;
+
+  constructor({ maxPerMinute = 10, burstSize = 3 }: RateLimiterOptions = {}) {
     this.maxPerMinute = maxPerMinute;
     this.burstSize = burstSize;
     this.tokens = burstSize;
@@ -281,7 +414,7 @@ class RateLimiter {
     this.refillRate = (60 * 1000) / maxPerMinute; // ms per token
   }
 
-  _refill() {
+  private _refill(): void {
     const now = Date.now();
     const elapsed = now - this.lastRefill;
     const newTokens = Math.floor(elapsed / this.refillRate);
@@ -291,8 +424,8 @@ class RateLimiter {
     }
   }
 
-  /** @returns {Promise<void>} */
-  async acquire() {
+  /** Vent til et token er tilgjengelig. */
+  acquire(): Promise<void> {
     return new Promise((resolve) => {
       const tryAcquire = () => {
         this._refill();
@@ -310,12 +443,4 @@ class RateLimiter {
   }
 }
 
-module.exports = {
-  detectProjectTypeFromMetadata,
-  analyzeRepository,
-  PROJECT_TYPE_LABELS,
-  PRIORITY_RANK,
-  meetsMinPriority,
-  mergeAIRecommendations,
-  RateLimiter,
-};
+

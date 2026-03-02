@@ -4,6 +4,8 @@
   "description": "Produktene dine vokser kontinuerlig – automatisk.",
   "main": "index.js",
   "scripts": {
+    "build:core": "tsc -p packages/core/tsconfig.json",
+    "prepare": "npm run build:core",
     "dev": "node server/index.js",
     "dev:client": "vite",
     "build": "vite build",
@@ -29,6 +31,7 @@
   "homepage": "https://github.com/FrankBurmo/evo#readme",
   "dependencies": {
     "@octokit/rest": "^22.0.1",
+    "commander": "^14.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",

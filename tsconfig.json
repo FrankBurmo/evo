@@ -16,7 +16,7 @@
   "include": [
     "server/**/*.js",
     "server/**/*.d.ts",
-    "packages/core/**/*.js",
+    "packages/core/index.ts",
     "vitest.backend.config.js"
   ],
   "exclude": [

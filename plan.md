@@ -19,6 +19,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **Fase C komplett:** Frontend-kvalitet og tilgjengelighet — a11y, performance, søk/sortering, skeleton loading, toast, Error Boundary
 - **Fase D komplett:** Testdekning ~25% → ~70% — 219 tester (21 testfiler), supertest-integrasjonstester, backend/CLI/frontend fulldekning
 - **TypeScript Trinn 1+2 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `tsconfig.base.json`, `tsconfig.json` (backend/CommonJS), `tsconfig.frontend.json` (ESNext/bundler), `packages/core/tsconfig.json`, `packages/cli/tsconfig.json` — `typecheck`-script kjører alle 4 i sekvens, **0 feil**
+- **TypeScript H2+H3 ferdig:** `commander` installert i root (bundled typer), `@ts-ignore` fjernet fra CLI. `packages/core/index.ts` med fullstendige interfaces (`Recommendation`, `ProjectType`, `Priority`, `RepositoryMeta`, `RepositoryAnalysis`, `RateLimiterOptions` m.fl.). Core kompilerer til `dist/index.js` + `dist/index.d.ts`. `prepare`-hook bygger core automatisk ved `npm install`.
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -439,7 +440,7 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 | `@types/express`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/cors`, `@types/supertest` | ✅ |
 | `server/types.d.ts` — Express `Request.token`-utvidelse | ✅ |
 | `"typecheck": "tsc --project jsconfig.json --noEmit"` i package.json | ✅ |
-| Antall typesjekk-feil: **1** (manglende `@types/commander` — se H2) | ✅ |
+| Antall typesjekk-feil: **0** (`commander` installert i root, `@ts-ignore` fjernet) | ✅ |
 
 **Migreringsstrategi:** Gradvis konvertering modul for modul med `allowJs: true` slik at `.js`- og `.ts`-filer kan eksistere side om side under overgangen. Starte med de mest «bladlike» modulene i avhengighetstreet og jobbe seg oppover.
 
@@ -450,36 +451,44 @@ Basert på en komplett kodegjennomgang er backlog-en restrukturert i 6 nye faser
 - [x] **H1a. `tsconfig.base.json`** — felles base: `target: ES2022`, `strict: true`, `esModuleInterop: true`, `resolveJsonModule: true`, `skipLibCheck: true`
 - [x] **H1b. `tsconfig.json`** (backend/rot) — arver fra base, `module: CommonJS`, `moduleResolution: node`, `allowJs: true` for gradvis migrering
 - [x] **H1c. Vite typesjekk** — `tsconfig.frontend.json` med `module: ESNext`, `moduleResolution: bundler`, `jsx: react-jsx`, kun for typesjekk (Vite kompilerer selv)
-- [x] **H1d. `packages/core/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, `declaration: true` (aktiveres i H3)
+- [x] **H1d. `packages/core/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, `declaration: true` (aktivert i H3)
 - [x] **H1e. `packages/cli/tsconfig.json`** — `module: CommonJS`, `outDir: dist`, peker på `rootDir: .`
 - [x] **H1f. Oppdater `typecheck`-script** — kjører `tsc` mot alle tsconfig-filer i sekvens: `tsconfig.json && tsconfig.frontend.json && packages/core && packages/cli` — **0 feil**
 
 **Bonus-fikset i H1:**
 - `server/copilot-client.js:387` og `packages/cli/src/copilot.js:71` — `response.json()` tvungent til `any` (`/** @type {any} */`) siden `@types/node` v18+ returnerer `unknown`
-- `packages/cli/bin/evo-scan.js:6` — `// @ts-ignore` på `require('commander')` midlertidig (løses i H2a)
+- `packages/cli/bin/evo-scan.js:6` — `// @ts-ignore` på `require('commander')` fjernet ✅ (løst i H2a)
 
 ---
 
-#### H2 — Fiks manglende type-avhengigheter
+#### H2 — Fiks manglende type-avhengigheter ✅ Ferdig
 
-- [ ] **H2a. `commander`** — `commander` v11+ har bundled typer; ingen `@types/commander` nødvendig. Fiks `packages/cli/bin/evo-scan.js` til å bruke `import` (eller legg til `// @ts-ignore` midlertidig)
-- [ ] **H2b. Verifiser alle `@types/*`** — bekreft at `@types/cors`, `@types/express`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/supertest` gir null resterende typesjekk-feil
+- [x] **H2a. `commander`** — installert `commander` i root `node_modules` slik at `packages/cli/tsconfig.json` kan finne typer. Fjernet `// @ts-ignore` fra `packages/cli/bin/evo-scan.js`. Commander v14 har bundled typer.
+- [x] **H2b. Verifiser alle `@types/*`** — `@types/cors`, `@types/express`, `@types/node`, `@types/react`, `@types/react-dom`, `@types/supertest` gir 0 typesjekk-feil
 
 **Estimat:** 0.5 time
 
 ---
 
-#### H3 — Konverter `packages/core/` (mest selvstendige modul)
+#### H3 — Konverter `packages/core/` (mest selvstendige modul) ✅ Ferdig
 
-- [ ] **H3a.** Definer og eksporter felles interfaces i `packages/core/index.ts`:
-  - `Recommendation` — `{ type, title, description, priority, source?, codeInsights? }`
+- [x] **H3a.** Definert og eksportert felles interfaces i `packages/core/index.ts`:
+  - `Recommendation` — `{ type, title, description, priority, source?, marketOpportunity?, codeInsights? }`
   - `ProjectType` — union type: `'web-app' | 'android-app' | 'api' | 'library' | 'docs' | 'other'`
-  - `Repository` — referer Octokit-typer der det er mulig (`Awaited<ReturnType<Octokit['repos']['listForAuthenticatedUser']>['data'][0]>`)
-  - `AnalysisResult` — `{ recommendations: Recommendation[], projectType: ProjectType, score?: number }`
+  - `Priority` — `'high' | 'medium' | 'low' | 'info' | 'success'`
+  - `RecommendationType` — fullstendig union type for alle kategorier
+  - `RepositoryMeta` — subset av GitHub API repo-objekt (input til analyseR)
+  - `RepoSummary` + `RepositoryAnalysis` — returtype fra `analyzeRepository()`
+  - `AnalysisResult`, `DeepInsights`, `AIAnalysisResult` — server-analyse-typer
   - `RateLimiterOptions` — konfigurasjonsobjekt for `RateLimiter`
-- [ ] **H3b.** `packages/core/index.js` → `packages/core/index.ts` med eksplisitte parametertypes og returtyper
-- [ ] **H3c.** Oppdater `packages/core/package.json` med `"types": "index.d.ts"`, `"scripts": { "build": "tsc" }`
-- [ ] **H3d.** Oppdater `tsconfig` til å kompilere core → `packages/core/dist/` og sjekk at server og CLI-imports fungerer
+- [x] **H3b.** `packages/core/index.js` → `packages/core/index.ts` med eksplisitte parametertypes og returtyper. `index.js` er nå en tynn proxy til `dist/index.js` for bakoverkompatibilitet med tester.
+- [x] **H3c.** Oppdatert `packages/core/package.json`: `"main": "dist/index.js"`, `"types": "dist/index.d.ts"`, `"scripts": { "build": "tsc -p tsconfig.json" }`. Lagt til `build:core`-script og `prepare`-hook i rot-`package.json`.
+- [x] **H3d.** `packages/core/tsconfig.json` aktivert med `"noEmit": false`, `"outDir": "dist"`, `"declaration": true`, `"declarationDir": "dist"`. Rot-`tsconfig.json` inkluderer nå `packages/core/index.ts` i stedet for `packages/core/**/*.js`. Typesjekk: **0 feil**.
+
+**Bonus-fikser i H3:**
+- `server/routes/repos.js` og `server/services/scan-service.js` — `RepositoryMeta.license.spdx_id` utvidet til `string | null | undefined` for kompatibilitet med GitHub API-typer
+- `RepositoryAnalysis`-interface utvidet med valgfrie server-side felt (`deepInsights`, `aiAnalyzed`, `aiSummary`, etc.)
+- `packages/cli/src/scanner.js:158` — lagt til null-sjekk på `repoData.fullName` for TypeScript-korrekthet
 
 **Estimat:** 1 dag
 
