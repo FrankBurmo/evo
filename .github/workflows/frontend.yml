@@ -26,8 +26,11 @@ jobs:
       - name: Run frontend tests
         run: npx vitest run
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Run backend & CLI tests
-        run: npx vitest run --config vitest.backend.config.js
+        run: npx vitest run --config vitest.backend.config.ts
 
   build:
     name: Build

@@ -21,6 +21,7 @@ Evo har utviklet seg betydelig fra den opprinnelige planen. Prosjektet er rebran
 - **TypeScript Trinn 1+2 gjort:** `jsconfig.json` med `checkJs: true` + `strict: true`, alle `@types/*`-pakker installert, `server/types.d.ts`, `tsconfig.base.json`, `tsconfig.json` (backend/CommonJS), `tsconfig.frontend.json` (ESNext/bundler), `packages/core/tsconfig.json`, `packages/cli/tsconfig.json` — `typecheck`-script kjører alle 4 i sekvens, **0 feil**
 - **TypeScript H2+H3 ferdig:** `commander` installert i root (bundled typer), `@ts-ignore` fjernet fra CLI. `packages/core/index.ts` med fullstendige interfaces (`Recommendation`, `ProjectType`, `Priority`, `RepositoryMeta`, `RepositoryAnalysis`, `RateLimiterOptions` m.fl.). Core kompilerer til `dist/index.js` + `dist/index.d.ts`. `prepare`-hook bygger core automatisk ved `npm install`.
 - **TypeScript H4+H5+H6 ferdig:** Alle `server/`-filer (20 stk) og `packages/cli/`-filer (6 stk) konvertert til TypeScript. Gamle `.js`-kilde-filer slettet. `vitest.backend.config.js` oppdatert med `tsx/cjs`-loader og `Object.defineProperty`-patch for test-mocking-kompatibilitet. `server/routes/*.ts` bruker `export = router` for CJS-interop. `packages/cli/src/analyzer.ts` eksporterer `detectProjectType` og `PROJECT_TYPE_LABELS`. Typecheck: **0 feil**. Tester: **219/219 passerer**.
+- **TypeScript H8 ferdig (produksjonsbygg):** `tsconfig.server.build.json` (`rootDir: "."`, `outDir: "dist"`) kompilerer server + core til korrekte relative stier. `npm run build:server` → `dist/server/index.js` + `dist/packages/core/index.js`. `npm start` kjører produksjonsserveren. GitHub Actions-workflow fikset: `vitest.backend.config.ts`-referanse rettet + `npm run typecheck`-steg lagt til i CI-pipeline. **Fase H 100% ferdig.**
 - **Web-dashboard** med `ConfigurablePanel` (erstattet 3 separate paneler), filtrering, statistikk, AgentModal, ScanControl
 - **CLI** (`evo-scan`) med Commander.js, regelbasert + AI-analyse, issue-opprettelse, config-støtte
 - **Express-backend** med 12 API-endepunkter, rate limiting, Copilot Agent-tildeling via GraphQL, `server/services/issue-service.js`
@@ -575,13 +576,13 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 
 ---
 
-#### H8 — Bygg-oppdateringer
+#### H8 — Bygg-oppdateringer ✅ Ferdig
 
 - [x] **H8a. Backend dev:** Installer `tsx` (`npm i -D tsx`) — erstatter `node server/index.js` med `tsx server/index.ts`; raskere enn `ts-node`
-- [ ] **H8b. Backend prod:** `tsc -p tsconfig.json` → kompilerer til `dist/server/`, `npm start` kjører `node dist/server/index.js`
+- [x] **H8b. Backend prod:** `tsconfig.server.build.json` med `rootDir: "."` og `outDir: "dist"` — `npm run build:server` kompilerer server + core til `dist/`; `npm start` kjører `node dist/server/index.js`. Relative imports (`'../packages/core'`) løses korrekt via `dist/packages/core/index.js`.
 - [x] **H8c. CLI:** `packages/cli/bin/evo-scan.ts` kjøres direkte med `tsx` via `packages/cli/package.json` `start`-script
-- [x] **H8d.** Oppdater `package.json` scripts: `"dev": "tsx server/index.ts"` ✅ (gjort), `"build:server"` gjenstår
-- [ ] **H8e.** Legg til `tsc --noEmit` i GitHub Actions CI-workflow (`.github/workflows/`) for typesjekk ved PR
+- [x] **H8d.** Oppdater `package.json` scripts: `"dev": "tsx server/index.ts"` ✅, `"build:server": "tsc -p tsconfig.server.build.json"` ✅, `"start": "node dist/server/index.js"` ✅
+- [x] **H8e.** Lagt til `typecheck`-steg i `.github/workflows/frontend.yml` — kjører `npm run typecheck` (alle 4 tsconfig-filer, `--noEmit`) i test-jobben. Rettet stale `vitest.backend.config.js` → `vitest.backend.config.ts`.
 
 **Estimat:** 0.5 dag
 
@@ -650,10 +651,10 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 | C2 | Performance-fikser | C | 🟡 Middels | ✅ | 2t |
 | C3 | UX-forbedringer | C | 🟡 Middels | ✅ | 4t |
 | C4 | State management | C | 🟡 Middels | ✅ | 2t |
-| D1 | Backend route-tester | D | 🟡 Middels | ❌ | 4t |
-| D2 | Backend kjernefunksjon-tester | D | 🟡 Middels | ❌ | 3t |
-| D3 | CLI-tester | D | 🟡 Middels | ❌ | 3t |
-| D4 | Frontend-tester | D | 🟡 Middels | ❌ | 3t |
+| D1 | Backend route-tester | D | 🟡 Middels | ✅ | 4t |
+| D2 | Backend kjernefunksjon-tester | D | 🟡 Middels | ✅ | 3t |
+| D3 | CLI-tester | D | 🟡 Middels | ✅ | 3t |
+| D4 | Frontend-tester | D | 🟡 Middels | ✅ | 3t |
 | E1–3 | CLI: rate limiting, retry, prompts | E | 🟢 Lav | ❌ | 3t |
 | E4–10 | CLI: UX-forbedringer og fikser | E | 🟢 Lav | ❌ | 2t |
 | F1 | Strukturert logging | F | 🔵 Nice-to-have | ❌ | 3t |
@@ -669,7 +670,7 @@ Konverteringsrekkefølge etter avhengighetstre — minst til størst:
 | H5 | Konverter `server/` fil for fil (16 filer) | H | 🟠 Høy | ✅ | 2–3d |
 | H6 | Konverter `packages/cli/` (6 filer) | H | 🟡 Middels | ✅ | 1d |
 | H7 | Konverter `src/` React-frontend (14 .jsx → .tsx) | H | 🟡 Middels | ✅ | 1.5d |
-| H8 | Bygg-oppdateringer (`tsx` dev, `tsc` prod, CI) | H | 🟡 Middels | ⚠️ Delvis | 0.5d |
+| H8 | Bygg-oppdateringer (`tsx` dev, `tsc` prod, CI) | H | 🟡 Middels | ✅ | 0.5d |
 | H9 | Strengere typesjekk (`noImplicitAny`, `allowJs`-fjerning, dead code) | H | 🟢 Lav | ✅ | 0.5d |
 | H10 | Konverter tester til TypeScript (21 testfiler) | H | 🟢 Lav | ✅ | 1d |
 

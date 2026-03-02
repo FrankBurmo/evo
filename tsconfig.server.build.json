@@ -1,0 +1,35 @@
+{
+  // Produksjons-build for backend-server.
+  // Kompilerer server/ og packages/core/ til dist/ med korrekte relative stier.
+  //
+  // Bruk:
+  //   npm run build:server   →  tsc -p tsconfig.server.build.json
+  //   npm start              →  node dist/server/index.js
+  //
+  // Merk: rootDir "." gjør at dist-strukturen speiler kildekode-strukturen:
+  //   server/index.ts       → dist/server/index.js
+  //   packages/core/index.ts → dist/packages/core/index.js
+  //
+  // Da vil require('../packages/core') i dist/server/*.js løses korrekt
+  // til dist/packages/core/index.js (Node.js index-fallback).
+
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "lib": ["ES2022"],
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": [
+    "server/**/*.ts",
+    "packages/core/index.ts"
+  ],
+  "exclude": [
+    "server/**/*.test.ts",
+    "server/**/*.spec.ts",
+    "node_modules",
+    "dist"
+  ]
+}
