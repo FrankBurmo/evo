@@ -17,6 +17,10 @@ import type { RepoData } from '../types';
 const VIRTUALIZE_THRESHOLD = 12;
 /** Fast høyde per repo-kort i virtualisert liste (px). */
 const ITEM_HEIGHT = 520;
+/** Minimumsbredde per kort (tilsvarer CSS minmax(360px, 1fr)). */
+const CARD_MIN_WIDTH = 360;
+/** Mellomrom mellom kort (px). */
+const GRID_GAP = 16;
 
 interface DashboardProps {
   token: string;
@@ -309,26 +313,52 @@ function Dashboard({ token, onLogout }: DashboardProps): React.JSX.Element {
         /* Virtualisert liste for store samlinger (> 12 repos) */
         <div className="repos-list-virtual" style={{ height: '80vh' }}>
           <AutoSizer
-            renderProp={({ width, height }) =>
-              width && height ? (
-                <FixedSizeList
+            renderProp={({ width, height }) => {
+              if (!width || !height) return null;
+              const columnCount = Math.max(1, Math.floor((width + GRID_GAP) / (CARD_MIN_WIDTH + GRID_GAP)));
+              const rowCount = Math.ceil(filteredRepos.length / columnCount);
+              const rowHeight = ITEM_HEIGHT + GRID_GAP;
+              type RowData = { repos: RepoData[]; columnCount: number; token: string };
+              const rowData: RowData = { repos: filteredRepos, columnCount, token };
+              return (
+                <FixedSizeList<RowData>
                   height={height}
                   width={width}
-                  itemCount={filteredRepos.length}
-                  itemSize={ITEM_HEIGHT}
-                  itemData={filteredRepos}
+                  itemCount={rowCount}
+                  itemSize={rowHeight}
+                  itemData={rowData}
                 >
-                  {({ index, style, data }: ListChildComponentProps<RepoData[]>) => (
-                    <div style={{ ...style, paddingBottom: 16, boxSizing: 'border-box' }}>
-                      <RepositoryCard
-                        repoData={data[index]}
-                        token={token}
-                      />
-                    </div>
-                  )}
+                  {({ index, style, data }: ListChildComponentProps<RowData>) => {
+                    const { repos, columnCount: cols, token: t } = data;
+                    const startIdx = index * cols;
+                    const rowItems = repos.slice(startIdx, startIdx + cols);
+                    return (
+                      <div
+                        style={{
+                          ...style,
+                          display: 'grid',
+                          gridTemplateColumns: `repeat(${cols}, 1fr)`,
+                          gap: GRID_GAP,
+                          paddingBottom: GRID_GAP,
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        {rowItems.map((repoData) => (
+                          <RepositoryCard
+                            key={repoData.repo.fullName}
+                            repoData={repoData}
+                            token={t}
+                          />
+                        ))}
+                        {Array.from({ length: cols - rowItems.length }).map((_, i) => (
+                          <div key={`empty-${i}`} />
+                        ))}
+                      </div>
+                    );
+                  }}
                 </FixedSizeList>
-              ) : null
-            }
+              );
+            }}
           />
         </div>
       ) : (
