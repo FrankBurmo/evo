@@ -48,7 +48,7 @@ export const errorHandler: ErrorRequestHandler = (err: AppError, req, res, _next
   const statusCode = err.status || err.statusCode || 500;
   const message = err.message || 'En intern serverfeil oppstod';
 
-  console.error(`[ERROR] ${req.method} ${req.path}:`, err);
+  console.error('[ERROR] %s %s:', req.method, req.path, err);
 
   res.status(statusCode).json({
     error: statusCode >= 500 ? 'Internal Server Error' : err.error || 'Request Error',
