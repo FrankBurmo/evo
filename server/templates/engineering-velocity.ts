@@ -5,9 +5,9 @@
  */
 import type { IssueTemplate } from '../types';
 
-export const ENGINEERING_VELOCITY_TEMPLATES: Record<string, (repoName: string) => IssueTemplate> =
-  {
-    'cicd-maturity': (repoName) => ({
+export const ENGINEERING_VELOCITY_TEMPLATES = new Map<string, (repoName: string) => IssueTemplate>(
+  [
+    ['cicd-maturity', (repoName) => ({
       title: `[CI/CD-modenhet] Pipeline-analyse av ${repoName}`,
       labels: ['copilot:run', 'ci-cd', 'engineering-velocity'],
       body: `## ⚙️ CI/CD-modenhet Analyse
@@ -73,9 +73,9 @@ Som en **erfaren DevOps-ingeniør og platform engineer**, analyser hele CI/CD-op
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`cicd-maturity\`*
 `,
-    }),
+    })],
 
-    'dora-assessment': (repoName) => ({
+    ['dora-assessment', (repoName) => ({
       title: `[DORA-analyse] Leveransehastighet-vurdering av ${repoName}`,
       labels: ['copilot:run', 'dora-metrics', 'engineering-velocity'],
       body: `## 📊 DORA-metrikker & Leveransehastighet
@@ -140,9 +140,9 @@ Som en **erfaren engineering manager og DevOps-forsker**, analyser dette reposit
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`dora-assessment\`*
 `,
-    }),
+    })],
 
-    'observability': (repoName) => ({
+    ['observability', (repoName) => ({
       title: `[Observability] Monitorering og synlighets-analyse av ${repoName}`,
       labels: ['copilot:run', 'observability', 'engineering-velocity'],
       body: `## 🔭 Observability & Monitorering
@@ -210,9 +210,9 @@ Som en **erfaren SRE (Site Reliability Engineer)**, analyser observability-praks
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`observability\`*
 `,
-    }),
+    })],
 
-    'release-hygiene': (repoName) => ({
+    ['release-hygiene', (repoName) => ({
       title: `[Release-hygiene] Versjonering og release-prosess i ${repoName}`,
       labels: ['copilot:run', 'release-management', 'engineering-velocity'],
       body: `## 🏷️ Release-hygiene & Versjonering
@@ -278,9 +278,9 @@ Som en **erfaren release engineer og platform architect**, gjennomgå release-pr
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`release-hygiene\`*
 `,
-    }),
+    })],
 
-    'community-health': (repoName) => ({
+    ['community-health', (repoName) => ({
       title: `[Community-helse] CHAOSS-basert analyse av ${repoName}`,
       labels: ['copilot:run', 'community', 'engineering-velocity'],
       body: `## 🌱 Community-helse & Bærekraft
@@ -352,5 +352,6 @@ Som en **erfaren open source community strateg**, analyser dette repositoryet ba
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`community-health\`*
 `,
-    }),
-  };
+    })],
+  ],
+);

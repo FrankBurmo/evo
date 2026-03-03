@@ -141,16 +141,8 @@ router.post(
   async (req, res, next) => {
     const { actionId } = req.params as { actionId: string };
 
-    if (!Object.prototype.hasOwnProperty.call(PRODUCT_DEV_TEMPLATES, actionId)) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: `Ukjent product-dev action: ${actionId}`,
-        statusCode: 400,
-      });
-    }
-
-    const templateFn = PRODUCT_DEV_TEMPLATES[actionId];
-    if (!templateFn || typeof templateFn !== 'function') {
+    const templateFn = PRODUCT_DEV_TEMPLATES.get(actionId);
+    if (!templateFn) {
       return res.status(400).json({
         error: 'Validation Error',
         message: `Ukjent product-dev action: ${actionId}`,
@@ -184,16 +176,8 @@ router.post(
   async (req, res, next) => {
     const { actionId } = req.params as { actionId: string };
 
-    if (!Object.prototype.hasOwnProperty.call(ENGINEERING_VELOCITY_TEMPLATES, actionId)) {
-      return res.status(400).json({
-        error: 'Validation Error',
-        message: `Ukjent engineering-velocity action: ${actionId}`,
-        statusCode: 400,
-      });
-    }
-
-    const templateFn = ENGINEERING_VELOCITY_TEMPLATES[actionId];
-    if (!templateFn || typeof templateFn !== 'function') {
+    const templateFn = ENGINEERING_VELOCITY_TEMPLATES.get(actionId);
+    if (!templateFn) {
       return res.status(400).json({
         error: 'Validation Error',
         message: `Ukjent engineering-velocity action: ${actionId}`,

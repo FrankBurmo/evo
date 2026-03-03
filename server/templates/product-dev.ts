@@ -5,8 +5,8 @@
  */
 import type { IssueTemplate } from '../types';
 
-export const PRODUCT_DEV_TEMPLATES: Record<string, (repoName: string) => IssueTemplate> = {
-  'ux-audit': (repoName) => ({
+export const PRODUCT_DEV_TEMPLATES = new Map<string, (repoName: string) => IssueTemplate>([
+  ['ux-audit', (repoName) => ({
     title: `[UX-audit] Brukeropplevelse-gjennomgang av ${repoName}`,
     labels: ['copilot:run', 'ux', 'product-development'],
     body: `## 🎨 Brukeropplevelse (UX) Audit
@@ -73,9 +73,9 @@ Som en **erfaren UX-ekspert og produktdesigner**, analyser hele dette repository
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`ux-audit\`*
 `,
-  }),
+  })],
 
-  'market-opportunity': (repoName) => ({
+  ['market-opportunity', (repoName) => ({
     title: `[Markedsmuligheter] Vekst- og markedsanalyse av ${repoName}`,
     labels: ['copilot:run', 'market-analysis', 'product-development'],
     body: `## 📈 Markedsmuligheter & Vekstanalyse
@@ -141,9 +141,9 @@ Som en **erfaren produktstrateg**, analyser dette repositoryet for å identifise
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`market-opportunity\`*
 `,
-  }),
+  })],
 
-  'feature-discovery': (repoName) => ({
+  ['feature-discovery', (repoName) => ({
     title: `[Feature Discovery] Funksjonsanalyse og prioritering for ${repoName}`,
     labels: ['copilot:run', 'feature-discovery', 'product-development'],
     body: `## 💡 Feature Discovery & Prioritering
@@ -210,9 +210,9 @@ Som en **erfaren produktsjef (Product Manager)**, analyser dette repositoryet fo
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`feature-discovery\`*
 `,
-  }),
+  })],
 
-  'developer-experience': (repoName) => ({
+  ['developer-experience', (repoName) => ({
     title: `[DX-analyse] Utvikleropplevelse-gjennomgang av ${repoName}`,
     labels: ['copilot:run', 'developer-experience', 'product-development'],
     body: `## 🛠️ Utvikleropplevelse (DX) Analyse
@@ -279,9 +279,9 @@ Som en **erfaren Developer Advocate og DX-ekspert**, analyser dette repositoryet
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`developer-experience\`*
 `,
-  }),
+  })],
 
-  'product-market-fit': (repoName) => ({
+  ['product-market-fit', (repoName) => ({
     title: `[PMF-analyse] Produkt-markedstilpasning for ${repoName}`,
     labels: ['copilot:run', 'product-market-fit', 'product-development'],
     body: `## 🎯 Produkt-Markedstilpasning (PMF) Analyse
@@ -348,5 +348,5 @@ Som en **erfaren startup-rådgiver og produktstrateg**, analyser dette repositor
 
 *Automatisk opprettet av [Evo](https://github.com/FrankBurmo/evo). Kategori: \`product-market-fit\`*
 `,
-  }),
-};
+  })],
+]);

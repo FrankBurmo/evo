@@ -19,14 +19,14 @@ describe('PRODUCT_DEV_TEMPLATES', () => {
 
   it('har alle forventede template-funksjoner', () => {
     for (const key of expectedKeys) {
-      expect(PRODUCT_DEV_TEMPLATES).toHaveProperty(key);
-      expect(typeof PRODUCT_DEV_TEMPLATES[key]).toBe('function');
+      expect(PRODUCT_DEV_TEMPLATES.has(key)).toBe(true);
+      expect(typeof PRODUCT_DEV_TEMPLATES.get(key)).toBe('function');
     }
   });
 
   it('hver template-funksjon returnerer title, labels og body', () => {
     for (const key of expectedKeys) {
-      const t = PRODUCT_DEV_TEMPLATES[key]('test-repo');
+      const t = PRODUCT_DEV_TEMPLATES.get(key)('test-repo');
       expect(t).toHaveProperty('title');
       expect(t).toHaveProperty('labels');
       expect(t).toHaveProperty('body');
@@ -42,14 +42,14 @@ describe('ENGINEERING_VELOCITY_TEMPLATES', () => {
 
   it('har alle forventede template-funksjoner', () => {
     for (const key of expectedKeys) {
-      expect(ENGINEERING_VELOCITY_TEMPLATES).toHaveProperty(key);
-      expect(typeof ENGINEERING_VELOCITY_TEMPLATES[key]).toBe('function');
+      expect(ENGINEERING_VELOCITY_TEMPLATES.has(key)).toBe(true);
+      expect(typeof ENGINEERING_VELOCITY_TEMPLATES.get(key)).toBe('function');
     }
   });
 
   it('hver template returnerer copilot:run-label', () => {
     for (const key of expectedKeys) {
-      const t = ENGINEERING_VELOCITY_TEMPLATES[key]('r');
+      const t = ENGINEERING_VELOCITY_TEMPLATES.get(key)('r');
       expect(t.labels).toContain('copilot:run');
     }
   });
