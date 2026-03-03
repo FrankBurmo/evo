@@ -47,7 +47,7 @@ export async function createTemplateIssue({
     });
     issue = data;
   } catch (error: unknown) {
-    console.error(`Error creating ${logPrefix} issue:`, error);
+    console.error('Error creating %s issue:', logPrefix, error);
     throw {
       status: 500,
       error: 'Failed to create issue',
