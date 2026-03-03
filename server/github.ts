@@ -21,8 +21,12 @@ export function getOctokit(token?: string): Octokit {
  */
 export function extractToken(req: Request): string | null {
   const authHeader = (req.headers.authorization as string) || '';
-  const match = authHeader.match(/^bearer\s+(.+)$/i);
-  return (match ? match[1] : null) || process.env.GITHUB_TOKEN || null;
+  const lower = authHeader.toLowerCase();
+  if (lower.startsWith('bearer ')) {
+    const token = authHeader.slice(7).trim();
+    if (token) return token;
+  }
+  return process.env.GITHUB_TOKEN || null;
 }
 
 interface AssignCopilotOptions {
