@@ -142,7 +142,7 @@ router.post(
     const { actionId } = req.params as { actionId: string };
 
     const templateFn = PRODUCT_DEV_TEMPLATES.get(actionId);
-    if (!templateFn) {
+    if (!templateFn || typeof templateFn !== 'function') {
       return res.status(400).json({
         error: 'Validation Error',
         message: `Ukjent product-dev action: ${actionId}`,
