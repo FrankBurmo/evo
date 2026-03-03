@@ -2,6 +2,8 @@
 
 Produktene dine vokser kontinuerlig – automatisk.
 
+<img width="1302" height="1208" alt="image" src="https://github.com/user-attachments/assets/d7b7ab68-6aa4-4c4f-a4d4-08cf66e97ddf" />
+
 ## Funksjoner ✨
 
 - 📊 **Dashboard**: Visuell oversikt over alle dine GitHub repositories
@@ -16,6 +18,8 @@ Produktene dine vokser kontinuerlig – automatisk.
   - Markedsmuligheter
   - Repositories som trenger oppmerksomhet
   - Aktive vs inaktive repositories
+
+<img width="1294" height="1216" alt="image" src="https://github.com/user-attachments/assets/8876eba6-c4e2-498e-9a82-9c2c662135d7" />
 
 ## Teknologi 🛠️
 
