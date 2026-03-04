@@ -118,10 +118,15 @@ describe('routes/scan', () => {
     });
 
     it('returnerer 401 uten auth', async () => {
+      const savedToken = process.env.GITHUB_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+
       const res = await request(app)
         .post('/api/scan/start')
         .send({});
       expect(res.status).toBe(401);
+
+      if (savedToken !== undefined) process.env.GITHUB_TOKEN = savedToken;
     });
 
     it('sender options videre til startScan', async () => {

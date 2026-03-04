@@ -77,9 +77,14 @@ describe('routes/repos', () => {
 
   describe('GET /api/repos', () => {
     it('returnerer 401 uten Authorization-header', async () => {
+      const savedToken = process.env.GITHUB_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+
       const res = await request(app).get('/api/repos');
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('Unauthorized');
+
+      if (savedToken !== undefined) process.env.GITHUB_TOKEN = savedToken;
     });
 
     it('returnerer analyserte repos', async () => {
@@ -238,11 +243,16 @@ describe('routes/repos', () => {
     });
 
     it('returnerer 401 uten auth', async () => {
+      const savedToken = process.env.GITHUB_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+
       const res = await request(app)
         .post('/api/repo/user/evo/ai-analyze')
         .send({});
 
       expect(res.status).toBe(401);
+
+      if (savedToken !== undefined) process.env.GITHUB_TOKEN = savedToken;
     });
   });
 });

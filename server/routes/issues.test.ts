@@ -90,10 +90,15 @@ describe('routes/issues', () => {
     });
 
     it('returnerer 401 uten auth', async () => {
+      const savedToken = process.env.GITHUB_TOKEN;
+      delete process.env.GITHUB_TOKEN;
+
       const res = await request(app)
         .post('/api/create-agent-issue')
         .send(validBody);
       expect(res.status).toBe(401);
+
+      if (savedToken !== undefined) process.env.GITHUB_TOKEN = savedToken;
     });
 
     it('returnerer valideringsfeil ved manglende felt', async () => {
