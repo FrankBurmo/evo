@@ -1,124 +1,159 @@
-# Evo 🌱
+# Evo
 
-Produktene dine vokser kontinuerlig – automatisk.
+> **Produktene dine vokser kontinuerlig – automatisk.**
+
+Evo er en proaktiv utviklingsassistent som analyserer alle GitHub-reposene dine med AI og oppretter konkrete GitHub Issues med forbedringsforslag – helt uten at du trenger å gjøre noe manuelt.
 
 <img width="1302" height="1208" alt="image" src="https://github.com/user-attachments/assets/d7b7ab68-6aa4-4c4f-a4d4-08cf66e97ddf" />
 
-## Funksjoner ✨
+---
 
-- 📊 **Dashboard**: Visuell oversikt over alle dine GitHub repositories
-- 🎯 **Anbefalinger**: Intelligente forslag for hvert repository basert på:
-  - Dokumentasjon (README, lisenser, etc.)
-  - Aktivitet og vedlikehold
-  - Issues og community engagement
-  - Synlighet og markedsføring
-- 💼 **Markedsmuligheter**: Identifiser potensiale for vekst og forbedring
-- 📈 **Statistikk**: Få oversikt over totalt antall repos, stjerner, aktivitet, etc.
-- 🔍 **Filtrering**: Sorter repositories basert på:
-  - Markedsmuligheter
-  - Repositories som trenger oppmerksomhet
-  - Aktive vs inaktive repositories
+## Hva løser Evo?
+
+Hvis du har mange GitHub-prosjekter vet du problemet: det hopet seg opp med repos som mangler dokumentasjon, har utdaterte avhengigheter, ligge inaktive, eller aldri har fått den oppfølgingen de fortjener. Du vet det burde gjøres noe, men du rekker det aldri.
+
+**Evo gjør dette jobben for deg.**
+
+Verktøyet går gjennom alle reposene dine, forstår hva slags prosjekt det er (web-app, Android-app, API, bibliotek osv.), og bruker GitHub Copilot til å generere skreddersydde forbedringsforslag. Forslagene havner direkte som GitHub Issues i det aktuelle repoet – tildelt til Copilot Coding Agent slik at de kan løses automatisk.
+
+**Resultatet:** Prosjektene dine forbedres kontinuerlig, selv når du er opptatt med noe annet.
+
+---
+
+## Slik fungerer det
+
+```
+Du logger inn med GitHub-token
+        ↓
+Evo henter alle reposene dine
+        ↓
+AI analyserer hvert repo (kodestruktur, dokumentasjon, aktivitet, sikkerhet m.m.)
+        ↓
+Konkrete forbedringsforslag genereres per repo
+        ↓
+GitHub Issues opprettes automatisk – tildelt Copilot Coding Agent
+        ↓
+Copilot fikser problemene, du merger pull requests
+```
+
+Skanningen kan kjøres manuelt fra dashboardet, via CLI, eller settes opp til å kjøre automatisk med GitHub Actions.
+
+---
+
+## Hva blir analysert?
+
+Evo ser på alt som faktisk betyr noe for kvaliteten på et prosjekt:
+
+- **Dokumentasjon** – manglende README, beskrivelse, lisens, eller konfigurasjonseksempler
+- **Vedlikehold** – utdaterte avhengigheter, inaktivitet, åpne issues uten respons
+- **Sikkerhet** – kjente sårbarheter, manglende sikkerhetstiltak
+- **Testdekning** – manglende tester eller CI-oppsett
+- **Synlighet** – hva som skal til for at flere finner og bruker prosjektet
+- **Arkitektur** – prosjekttypespesifikke forbedringer (f.eks. Android vs. web vs. API)
 
 <img width="1294" height="1216" alt="image" src="https://github.com/user-attachments/assets/8876eba6-c4e2-498e-9a82-9c2c662135d7" />
 
-## Teknologi 🛠️
+---
 
-- **Frontend**: React + Vite
-- **Backend**: Node.js + Express
-- **API**: GitHub REST API via Octokit
-- **Styling**: Custom CSS
+## Forutsetninger
 
-## Installasjon 📦
+- **GitHub-konto** med de reposene du vil analysere
+- **GitHub Personal Access Token** med `repo`-scope
+- **GitHub Copilot-abonnement** (brukes som AI-motor – ingen ekstra AI-kostnad)
+- Node.js 18 eller nyere
 
-1. Klon repositoryet:
+---
+
+## Kom i gang
+
+### 1. Klon og installer
+
 ```bash
 git clone https://github.com/FrankBurmo/evo.git
 cd evo
-```
-
-2. Installer dependencies:
-```bash
 npm install
 ```
 
-3. (Valgfritt) Opprett en `.env` fil basert på `.env.example`:
+### 2. Start Evo
+
 ```bash
-cp .env.example .env
-```
-
-Rediger `.env` og legg inn din GitHub Personal Access Token hvis du ønsker det (kan også legges inn i UI).
-
-## Bruk 🚀
-
-### Utviklingsmodus
-
-1. Start backend serveren (i ett terminalvindu):
-```bash
+# Terminal 1 – backend
 npm run dev
-```
 
-2. Start frontend utviklingsserveren (i et annet terminalvindu):
-```bash
+# Terminal 2 – frontend
 npm run dev:client
 ```
 
-3. Åpne nettleseren på `http://localhost:3000`
+Åpne `http://localhost:3000` i nettleseren.
 
-### Produksjonsbuild
+### 3. Logg inn og skann
 
-1. Bygg frontend:
+Lim inn GitHub-tokenet ditt i innloggingsskjermen, klikk **Skann alle repos**, og se forslagene komme inn.
+
+---
+
+## GitHub Token
+
+Du trenger et Personal Access Token for å bruke Evo:
+
+1. Gå til [GitHub Settings → Tokens](https://github.com/settings/tokens/new)
+2. Velg **"Generate new token (classic)"**
+3. Gi det et navn (f.eks. `evo`) og velg scope: `repo`
+4. Kopier tokenet – det vises bare én gang
+
+Tokenet kan legges inn direkte i innloggingsskjermen, eller settes som miljøvariabel:
+
 ```bash
-npm run build
+# .env
+GITHUB_TOKEN=ghp_ditttoken
 ```
 
-2. Start serveren:
+---
+
+## CLI – kjør fra terminalen
+
+Evo har også et CLI-verktøy for de som foretrekker terminalen eller ønsker å integrere skanningen i egne skript:
+
 ```bash
-npm run dev
+npx evo-scan --token ghp_ditttoken --owner mittbrukernavn
 ```
 
-## GitHub Token 🔑
+Se [`packages/cli/README.md`](packages/cli/README.md) for full dokumentasjon.
 
-For å bruke applikasjonen trenger du en GitHub Personal Access Token:
+---
 
-1. Gå til [GitHub Settings > Tokens](https://github.com/settings/tokens/new)
-2. Klikk "Generate new token (classic)"
-3. Gi tokenet et navn (f.eks. "Evo")
-4. Velg scope: `repo` (for å lese repositories)
-5. Klikk "Generate token"
-6. Kopier tokenet (du ser det bare én gang!)
+## Automatisk skanning med GitHub Actions
 
-Du kan enten:
-- Legge inn tokenet i `.env` filen som `GITHUB_TOKEN`
-- Eller oppgi det direkte i applikasjonens login-skjerm
+Legg til en workflow i repoet ditt for daglig eller ukentlig automatisk skanning – da trenger du ikke gjøre noe som helst manuelt:
 
-## Anbefalingstyper 💡
+```yaml
+# .github/workflows/evo-scan.yml
+on:
+  schedule:
+    - cron: '0 8 * * 1'  # Hver mandag kl. 08:00
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npx evo-scan --token ${{ secrets.GITHUB_TOKEN }} --owner ${{ github.repository_owner }}
+```
 
-Systemet gir anbefalinger basert på:
+---
 
-### 📝 Dokumentasjon
-- Manglende README
-- Manglende beskrivelse
-- Manglende hjemmeside/dokumentasjon
+## Teknologi
 
-### 🔧 Vedlikehold
-- Åpne issues som bør håndteres
-- Inaktive repositories
-- Behov for oppdateringer
+- **Frontend:** React 19 + Vite, custom CSS
+- **Backend:** Node.js + Express, TypeScript
+- **GitHub-integrasjon:** `@octokit/rest`
+- **AI-motor:** GitHub Copilot Models API (GPT-4.1)
 
-### 🌟 Vekst og synlighet
-- Markedsføring av projektet
-- Tiltrekke bidragsytere
-- Bygge community
+---
 
-### 💼 Markedsmuligheter
-- Identifiser repositories med potensiale
-- Forslag til hvordan produktet kan tilpasses markedet
-- Strategier for produktutvikling
+## Bidra
 
-## Bidra 🤝
+Bidrag er velkomne – åpne gjerne en issue eller send en pull request.
 
-Bidrag er velkomne! Åpne gjerne en issue eller send en pull request.
-
-## Lisens 📄
+## Lisens
 
 MIT
