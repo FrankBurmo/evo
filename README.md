@@ -143,10 +143,10 @@ jobs:
 
 ## Teknologi
 
-- **Frontend:** React 19 + Vite, custom CSS
+- **Frontend:** React + Vite, custom CSS
 - **Backend:** Node.js + Express, TypeScript
 - **GitHub-integrasjon:** `@octokit/rest`
-- **AI-motor:** GitHub Copilot Models API (GPT-4.1)
+- **AI-motor:** GitHub Copilot Models API
 
 ---
 
