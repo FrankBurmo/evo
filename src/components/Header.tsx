@@ -17,7 +17,7 @@ function Header({ onLogout, showActions = false }: HeaderProps): React.JSX.Eleme
   return (
     <header className="header" role="banner">
       <div className="header-brand">
-        <div className="header-logo" aria-hidden="true">⚡</div>
+        <div className="header-logo" aria-hidden="true">E</div>
         <div className="header-title">
           <h1>Evo</h1>
           <p>Produktene dine vokser kontinuerlig – automatisk.</p>
@@ -36,7 +36,7 @@ function Header({ onLogout, showActions = false }: HeaderProps): React.JSX.Eleme
           aria-label={theme === 'dark' ? 'Bytt til lyst tema' : 'Bytt til mørkt tema'}
           title={theme === 'dark' ? 'Lyst tema' : 'Mørkt tema'}
         >
-          {theme === 'dark' ? '☀️' : '🌙'}
+          {theme === 'dark' ? 'Lys' : 'Mørk'}
         </button>
         {showActions && (
           <>
