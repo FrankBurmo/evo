@@ -4,15 +4,18 @@
 
 .panel {
   margin: 0 auto 20px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   overflow: hidden;
-  transition: border-color 0.2s;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .panel:hover {
   border-color: var(--border-strong);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
 }
 
 /* ── Header ──────────────────────────────────────────────────────────── */
