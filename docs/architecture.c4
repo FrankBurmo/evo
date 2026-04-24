@@ -1,0 +1,227 @@
+/**
+ * Evo — LikeC4 arkitekturdiagram
+ *
+ * Renderer: https://likec4.dev
+ * Vis live: npx likec4 start docs/architecture.c4
+ */
+
+specification {
+  element actor {
+    style {
+      shape person
+      color secondary
+    }
+  }
+  element system {
+    style {
+      color muted
+    }
+  }
+  element container {
+    style {
+      color blue
+    }
+  }
+  element component {
+    style {
+      color green
+    }
+  }
+  element database {
+    style {
+      shape cylinder
+      color amber
+    }
+  }
+}
+
+model {
+
+  // ── Aktører ──────────────────────────────────────────────────────────────
+
+  user = actor 'Bruker' {
+    description 'Utvikler som bruker Evo-plattformen via nettleser eller terminal'
+  }
+
+  // ── Eksterne systemer ─────────────────────────────────────────────────────
+
+  github = system 'GitHub API' {
+    description 'GitHub REST API — henter repo-info, filstruktur og oppretter issues via Octokit'
+  }
+
+  copilotApi = system 'GitHub Copilot Models API' {
+    description 'AI-motor (GPT-4.1 m.fl.) — utfører kodeanalyse og genererer anbefalinger'
+  }
+
+  // ── Evo-systemet ──────────────────────────────────────────────────────────
+
+  evo = system 'Evo' {
+    description 'Proaktiv utviklingsassistent og orkestreringsplattform for produktutvikling'
+
+    // ── Frontend ────────────────────────────────────────────────────────────
+
+    frontend = container 'Frontend' {
+      technology 'React 19 + Vite'
+      description 'Nettgrensesnitt. Sender GitHub PAT i Authorization-header til backend.'
+
+      appRoot = component 'App' {
+        technology 'React'
+        description 'Rotkomponent — håndterer autentiseringsflyt og PAT-lagring i localStorage'
+      }
+
+      dashboard = component 'Dashboard' {
+        technology 'React'
+        description 'Viser repo-oversikt, AI-anbefalinger og navigasjonspaneler'
+      }
+
+      repoCard = component 'RepositoryCard' {
+        technology 'React'
+        description 'Viser ett repo med anbefalinger og handlingsknapper'
+      }
+
+      scanPanel = component 'Scan-panel' {
+        technology 'React'
+        description 'ScanControl + ScanProgress + ScanResults — starter og viser proaktiv skanning'
+      }
+
+      agentModal = component 'AgentModal' {
+        technology 'React'
+        description 'Modal for å opprette GitHub Issues med Copilot Agent-tildeling'
+      }
+    }
+
+    // ── Backend API ─────────────────────────────────────────────────────────
+
+    backend = container 'Backend API' {
+      technology 'Node.js + Express 5'
+      description 'REST API-server på port 3001. Rate limiting, helmet-sikkerhet og CORS.'
+
+      reposRoute = component 'Repos-ruter' {
+        technology 'Express Router'
+        description 'GET /api/repos · GET /api/repo/:o/:n · GET /api/repo/:o/:n/deep · POST /api/repo/:o/:n/ai-analyze'
+      }
+
+      issuesRoute = component 'Issues-ruter' {
+        technology 'Express Router'
+        description 'POST /api/create-agent-issue · POST /api/guardrails/architecture-analysis · POST /api/product-dev/:id · POST /api/engineering-velocity/:id'
+      }
+
+      scanRoute = component 'Scan-ruter' {
+        technology 'Express Router'
+        description 'POST /api/scan/start · GET /api/scan/status · GET /api/scan/results · POST /api/scan/create-issues'
+      }
+
+      analysisService = component 'Analysis Service' {
+        technology 'TypeScript'
+        description 'Kombinerer dyp GitHub-analyse og AI-analyse til ett resultat (recommendations + deepInsights + aiSummary)'
+      }
+
+      scanService = component 'Scan Service' {
+        technology 'TypeScript'
+        description 'Holder skannetilstand og kjørelogikk — itererer repos, kaller analysisService og samler resultater'
+      }
+
+      issueService = component 'Issue Service' {
+        technology 'TypeScript'
+        description 'Felles hjelper for issue-opprettelse — sjekker duplikater og oppretter med label evo-scan'
+      }
+
+      copilotClient = component 'Copilot Client' {
+        technology 'TypeScript'
+        description 'Klient mot GitHub Copilot Models API — prosjekttypespesifikke prompts, retry-logikk og token-bucket rate limiting'
+      }
+
+      analyzer = component 'Analyzer + File Analyzer' {
+        technology 'TypeScript'
+        description 'Dyp repo-analyse — henter filstruktur og metadata via GitHub API, kjører prosjekttypegjenkjenning og regelbaserte anbefalinger'
+      }
+
+      githubHelper = component 'GitHub Helper' {
+        technology 'Octokit'
+        description 'Wrapper rundt @octokit/rest — getOctokit(), extractToken(), assignCopilotToIssue()'
+      }
+
+      middleware = component 'Middleware + Validation' {
+        technology 'Express / Zod'
+        description 'requireAuth, errorHandler, notFoundHandler og Zod-skjemaer for input-validering'
+      }
+    }
+
+    // ── Delte pakker ────────────────────────────────────────────────────────
+
+    corePackage = container '@evo/core' {
+      technology 'TypeScript (pakke)'
+      description 'Delt kode mellom server og CLI — analyzeRepository(), RateLimiter, PRIORITY_RANK, meetsMinPriority, felles typer'
+    }
+
+    cliPackage = container '@evo/cli (evo-scan)' {
+      technology 'Node.js CLI'
+      description 'Frittstående CLI-verktøy. Skanner repos, kjører AI-analyse og oppretter GitHub Issues fra terminalen.'
+    }
+  }
+
+  // ── Relasjoner ────────────────────────────────────────────────────────────
+
+  user -> evo.frontend 'Bruker nettgrensesnittet'
+  user -> evo.cliPackage 'Kjører evo-scan i terminal'
+
+  evo.frontend -> evo.backend 'REST API-kall (JSON/HTTP)' 'Authorization: Bearer <PAT>'
+
+  evo.frontend.appRoot -> evo.frontend.dashboard 'Rendrer etter innlogging'
+  evo.frontend.dashboard -> evo.frontend.repoCard 'Viser ett kort per repo'
+  evo.frontend.dashboard -> evo.frontend.scanPanel 'Viser skanningspanel'
+  evo.frontend.repoCard -> evo.frontend.agentModal 'Åpner modal ved klikk'
+
+  evo.backend.reposRoute -> evo.backend.analysisService 'Delegerer full repo-analyse'
+  evo.backend.reposRoute -> evo.backend.githubHelper 'Henter repo-liste'
+  evo.backend.scanRoute -> evo.backend.scanService 'Starter/statussjekk/resultater'
+  evo.backend.issuesRoute -> evo.backend.issueService 'Oppretter issues'
+  evo.backend.issuesRoute -> evo.backend.githubHelper 'Tildeler Copilot Agent til issue'
+
+  evo.backend.analysisService -> evo.backend.copilotClient 'AI-analyse per repo'
+  evo.backend.analysisService -> evo.backend.analyzer 'Dyp GitHub-analyse'
+  evo.backend.scanService -> evo.backend.analysisService 'Analyserer hvert repo i tur'
+  evo.backend.scanService -> evo.backend.issueService 'Oppretter issues fra skanneresultater'
+  evo.backend.issueService -> evo.backend.githubHelper 'Oppretter/sjekker issues'
+  evo.backend.analyzer -> evo.backend.githubHelper 'Henter filstruktur og repo-metadata'
+  evo.backend.copilotClient -> copilotApi 'AI-inferens (HTTPS)' 'openai/gpt-4.1'
+  evo.backend.githubHelper -> github 'REST API-kall (Octokit/HTTPS)'
+
+  evo.backend -> evo.corePackage 'Importerer analyzeRepository() og typer'
+  evo.cliPackage -> evo.corePackage 'Importerer analyzeRepository(), RateLimiter, typer'
+  evo.cliPackage -> github 'Henter repo-info og oppretter issues' 'Octokit/HTTPS'
+  evo.cliPackage -> copilotApi 'AI-analyse per repo' 'HTTPS'
+}
+
+// ── Views ─────────────────────────────────────────────────────────────────────
+
+views {
+
+  view index {
+    title 'Evo — Systemkontekst'
+    description 'Overordnet bilde: hvem bruker Evo og hvilke eksterne systemer er involvert'
+    include *
+    autoLayout TopBottom
+  }
+
+  view containers of evo {
+    title 'Evo — Containerdiagram'
+    description 'Frontend, Backend API, @evo/core og @evo/cli og deres interne avhengigheter'
+    include evo.*, ->evo.*, evo.*->
+    autoLayout TopBottom
+  }
+
+  view backendComponents of evo.backend {
+    title 'Evo — Backend-komponenter'
+    description 'Ruter, services og hjelpere inne i Express-serveren'
+    include evo.backend.*, ->evo.backend.*, evo.backend.*->
+    autoLayout TopBottom
+  }
+
+  view frontendComponents of evo.frontend {
+    title 'Evo — Frontend-komponenter'
+    description 'React-komponenthierarki i nettgrensesnittet'
+    include evo.frontend.*, ->evo.frontend.*, evo.frontend.*->
+    autoLayout TopBottom
+  }
+}
