@@ -49,12 +49,12 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
-    "@testing-library/user-event": "^14.6.4",
+    "@testing-library/user-event": "^14.6.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.9.5",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "@types/react-window": "^1.8.8",
     "@types/supertest": "^7.2.1",
     "@vitejs/plugin-react": "^5.2.0",
@@ -62,7 +62,7 @@
     "supertest": "^7.2.2",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3",
-    "vite": "^8.2.1",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }
