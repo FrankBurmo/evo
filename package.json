@@ -59,10 +59,10 @@
     "@types/supertest": "^7.2.1",
     "@vitejs/plugin-react": "^5.2.0",
     "jsdom": "^28.1.0",
-    "supertest": "^7.3.1",
+    "supertest": "^7.3.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
-    "vite": "^8.3.5",
+    "vite": "^8.3.6",
     "vitest": "^4.1.12"
   }
 }
